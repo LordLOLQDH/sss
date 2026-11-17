@@ -98,9 +98,9 @@ class SSSApp:
         ttk.Label(frame,text="Überwachung konfigurieren",style="Title.TLabel").pack(anchor="w")
         ttk.Label(frame,text="Ein Ordnerpfad pro Zeile. Unterordner werden automatisch einbezogen.",style="Sub.TLabel").pack(anchor="w",pady=(2,12))
         ttk.Label(frame,text="Zu überwachende Ordner").pack(anchor="w")
-        paths=tk.Text(frame,height=7,font=("Consolas",10)); paths.pack(fill="x",pady=5); paths.insert("1.0","\\n".join(self.cfg["scan_paths"]))
+        paths=tk.Text(frame,height=7,font=("Consolas",10)); paths.pack(fill="x",pady=5); paths.insert("1.0","\n".join(self.cfg["scan_paths"]))
         ttk.Label(frame,text="Ausgeschlossene Ordner (optional)").pack(anchor="w",pady=(10,0))
-        excludes=tk.Text(frame,height=4,font=("Consolas",10)); excludes.pack(fill="x",pady=5); excludes.insert("1.0","\\n".join(self.cfg["exclude_paths"]))
+        excludes=tk.Text(frame,height=4,font=("Consolas",10)); excludes.pack(fill="x",pady=5); excludes.insert("1.0","\n".join(self.cfg["exclude_paths"]))
         row=ttk.Frame(frame); row.pack(fill="x",pady=7)
         ttk.Label(row,text="Intervall (Minuten)").pack(side="left")
         interval=tk.StringVar(value=str(self.cfg["interval_minutes"])); ttk.Entry(row,textvariable=interval,width=7).pack(side="left",padx=8)
@@ -152,7 +152,7 @@ class SSSApp:
             try:
                 with urllib.request.urlopen(VERSION_URL,timeout=10) as r: remote=json.loads(r.read().decode())
                 latest=remote.get("version","unbekannt")
-                msg=f"Installierte Version: {VERSION}\\nVerfügbare Version: {latest}\\n\\nDer Updater lädt keine Änderungen automatisch. Öffne die Projektseite für geprüfte Updates."
+                msg=f"Installierte Version: {VERSION}\\nVerfügbare Version: {latest}\n\nDer Updater lädt keine Änderungen automatisch. Öffne die Projektseite für geprüfte Updates."
                 self.root.after(0,lambda:messagebox.showinfo("SSS · Updateprüfung",msg))
             except Exception as e: self.root.after(0,lambda:messagebox.showerror("Updateprüfung fehlgeschlagen",str(e)))
         threading.Thread(target=worker,daemon=True).start()
