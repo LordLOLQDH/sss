@@ -1,0 +1,10 @@
+{
+  "scan_paths": ["./testdaten"],
+  "exclude_paths": [],
+  "interval_minutes": 10,
+  "scan_on_start": false,
+  "inspect_source_files": true,
+  "use_clamav": true,
+  "max_file_mb": 100,
+  "report_dir": "reports"
+}
