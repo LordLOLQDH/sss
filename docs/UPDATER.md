@@ -1,13 +1,49 @@
-# SSS Updater
+# SSS Update-System
 
-Version 0.1.0 enthält eine Updateprüfung: Das Programm liest die veröffentlichte Versionsnummer aus `version.json`. Ein automatischer Download und Austausch der Programmdateien ist noch nicht implementiert.
+## Updateprüfungen
 
-Geplanter sicherer Updateprozess für eine spätere Version:
-1. Release-Metadaten vom offiziellen GitHub-Projekt abrufen.
-2. Nur signierte Release-Artefakte akzeptieren.
-3. Signatur und SHA-256-Prüfsumme lokal validieren.
-4. Vor Änderungen ein Backup der Programmdateien erstellen.
-5. Einstellungen und Berichte niemals überschreiben.
-6. Update in einem separaten Prozess installieren und bei Fehlern zurückrollen.
+Der Client prüft auf neue Releases:
+- automatisch beim Start (nicht blockierend für den Start der Oberfläche)
+- alle 24 Stunden
+- über „Jetzt nach Updates suchen“
 
-Bis dahin Updates manuell über GitHub beziehen und die Versionshinweise prüfen. Keine unbekannten Update-Server verwenden.
+## Updateprozess (Ziel)
+
+1. Abruf des Release-Manifests über HTTPS.
+2. Validierung des Schemas, Editions-/Channel-Zuordnung und Mindestversion.
+3. Paketdownload in einen temporären Ordner.
+4. SHA-256-Prüfung.
+5. Prüfung der kryptografischen Signatur mit einem im Client eingebetteten öffentlichen Schlüssel.
+6. Prüfung auf unterstützte Plattform und Paketgröße.
+7. Installation nur in einem kontrollierten Updateprozess; vorher Backup/rollback-fähige Version sichern.
+8. Start-/Health-Check und Ergebnisbericht.
+9. Bei fehlgeschlagenem Start: Rollback und Fehlerbericht.
+
+## Manifest (konzeptionelles Beispiel)
+
+```json
+{
+  "version": "0.2.0",
+  "edition": "standard",
+  "channel": "stable",
+  "platform": "windows-x64",
+  "minimum_version": "0.1.0",
+  "package_url": "HTTPS release asset URL",
+  "sha256": "package checksum",
+  "signature": "release signature"
+}
+```
+
+Beispielwerte sind Platzhalter. Das Manifest darf keine Shell-Befehle, beliebigen Installationsskripte oder ausführbaren Updateanweisungen enthalten.
+
+## Schlüssel und Freigaben
+
+- Private Signierschlüssel liegen außerhalb GitHub, außerhalb des Backends und außerhalb der Clientinstallation.
+- Der Client enthält nur den öffentlichen Verifikationsschlüssel.
+- Release-Pakete und Manifest werden vor Veröffentlichung signiert.
+- Unsignierte, ungültige, veraltete oder nicht passende Updates werden abgelehnt.
+- Administratoren können in Schulen Updatekanäle und Wartungsfenster festlegen; wichtige Sicherheitsupdates werden deutlich markiert.
+
+## Status
+
+Die automatische Installation, Signaturprüfung, Paketprüfung, Rollback und das 24-Stunden-Scheduling sind noch zu implementieren und zu testen. Eine bloße Versionsabfrage ist kein sicherer Updater.
