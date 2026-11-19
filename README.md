@@ -7,17 +7,24 @@ SchoolServer Security ist ein Entwicklungsprojekt für die Überwachung und Sich
 🌐 **Projektwebsite:** https://lordlolqdh.github.io/sss/  
 📦 **Quellcode:** https://github.com/LordLOLQDH/sss
 
-## Projektziele
+## Zielplattform
 
-- Konfigurierbare Laufwerke und Ordner überwachen
-- Regelmäßige Scans (geplantes Standardintervall: 10 Minuten)
-- Dateien anhand ihres tatsächlichen Inhalts analysieren
-- Programmierdateien und Skripte besonders intensiv prüfen
-- Verdächtige Dateien in einer geschützten Quarantäne isolieren
-- Manuelle Prüfung, Freigabe und nachvollziehbare Protokollierung
-- SHA-256-Prüfsummen zur Wiedererkennung unveränderter Dateien
+SSS entwickelt sich von einem lokalen Scanner zu einer zentral verwalteten Schul-Sicherheitsplattform mit Web-Control-Center, Backend, Client-Agent, Ereignissen, Updates und zwei Editionen: **SSS Standard** und **SSS Professional**.
 
-## Desktop-Programm\n\nVersion 0.1.0 enthält einen Python-Desktop-Prototyp unter `sss_scanner.py`. Er bietet manuelle, lesende Ordnerscans, bearbeitbare Einstellungen, optionale ClamAV-Anbindung und JSON-Berichte.\n\nStart: `python sss_scanner.py` (Python 3.10+). Eine ausführliche Anleitung steht in [docs/PROGRAMM.md](docs/PROGRAMM.md). Die Updateprüfung zeigt aktuell nur die verfügbare Versionsnummer; sie installiert noch keine Updates.\n\n## Dokumentation
+
+## Editionen
+
+- **SSS Standard:** lokaler Client, regelmäßige Prüfungen, Datei-/Log-Ereignisse, Dashboard, Status und Updates.
+- **SSS Professional:** Standard plus Multi-Server-/Standortverwaltung, erweiterte Regeln, Audit, Analyse und Integrationen.
+
+Details und Abgrenzung stehen in [docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md). Funktionen in dieser Zielarchitektur sind noch nicht automatisch implementiert.
+
+
+## Aktueller Client-Prototyp
+
+Version 0.1.0 enthält einen Python-Desktop-Prototyp unter `sss_scanner.py`. Er bietet manuelle, lesende Ordnerscans, optionale ClamAV-Anbindung und JSON-Berichte. Die Intervall-Einstellung ist noch kein aktiver Scheduler. Die automatische Installation von Updates ist noch nicht vorhanden.
+
+## Dokumentation
 
 - [Installations- und Nutzungshinweise](docs/INSTALLATION.md)
 - [Programm-Anleitung](docs/PROGRAMM.md)\n- [Updater-Status](docs/UPDATER.md)\n- [Sicherheits- und Datenschutzkonzept](docs/SECURITY.md)
