@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SSS · echte GUI Vorschau</title>
+<style>
+:root{--bg:#f5f8f6;--fg:#172b21;--muted:#65776d;--line:#dfe9e2;--green:#169553}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,sans-serif}
+header{background:white;border-bottom:1px solid var(--line);padding:14px 20px}header a{color:inherit;text-decoration:none;font-weight:750}
+main{max-width:980px;margin:35px auto;padding:0 18px}.box{background:white;border:1px solid var(--line);border-radius:16px;padding:24px;margin:18px 0}
+h1{font-size:clamp(28px,5vw,42px);letter-spacing:-.04em;margin:0 0 8px}h2{font-size:19px;margin-top:0}.muted{color:var(--muted)}
+.status{display:inline-flex;padding:5px 10px;border-radius:30px;background:#fff2dd;color:#8b6317;font-size:12px;font-weight:750}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:17px}.btn{background:var(--green);color:white;text-decoration:none;padding:10px 14px;border-radius:9px;font-weight:700}.btn.alt{background:white;color:var(--fg);border:1px solid var(--line)}
+code,pre{background:#f4f7f5;border-radius:8px}pre{padding:12px;overflow:auto;font-size:12px}
+@media(max-width:600px){.box{padding:16px}}
+</style></head><body>
+<header><a href="index.html">← SchoolServer Security · SSS</a></header>
+<main>
+<h1>Echte Python-GUI Vorschau</h1>
+<p class="muted">Direkter Code der Desktop-Anwendung, keine nachgebaute Browser-Oberfläche.</p>
+<span class="status">Live-Desktop-Stream: derzeit nicht verfügbar</span>
+<section class="box"><h2>Was diese Seite tatsächlich zeigt</h2>
+<p>Die echte Anwendung ist <code>sss_gui.py</code> und basiert auf PySide6. GitHub Pages kann Python-GUIs nicht ausführen. Es gibt hier deshalb noch keine Live-Bildübertragung.</p>
+<p>Die Vorschau-HTML-Seite führt keine erfundenen Benutzer, Schul-Logs oder Scanwerte vor. Für eine echte interaktive Live-Vorschau ist ein isolierter Remote-Desktop-Host erforderlich, der das Python-Programm startet und den Bildschirm sicher streamt.</p>
+<div class="actions"><a class="btn" href="https://github.com/LordLOLQDH/SSS/blob/main/sss_gui.py">Python-GUI Quellcode</a><a class="btn alt" href="https://raw.githubusercontent.com/LordLOLQDH/SSS/main/sss_gui.py">Originaldatei öffnen</a><a class="btn alt" href="dashboard.html">Desktop-Paket erstellen</a></div>
+</section>
+<section class="box"><h2>Original-Code Vorschau</h2><p class="muted">Aus dem Repository geladen: <code>sss_gui.py</code></p><pre id="source">Code wird geladen…</pre></section>
+</main>
+<script>
+fetch('https://raw.githubusercontent.com/LordLOLQDH/SSS/main/sss_gui.py').then(r=>{if(!r.ok)throw Error('HTTP '+r.status);return r.text()}).then(t=>{document.getElementById('source').textContent=t}).catch(e=>{document.getElementById('source').textContent='Quellcode kann nicht geladen werden. Öffne die Originaldatei über den Link oben.'});
+</script></body></html>
