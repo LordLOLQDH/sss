@@ -45,7 +45,7 @@ const initialFiles=[
 ];
 const usersSeed=[["u1","anna.schmidt","Anna Schmidt","Lehrkraft","U:","Aktiv"],["u2","max.mueller","Max Müller","Schüler","U:","Aktiv"],["u3","lena.weber","Lena Weber","Schüler","U:","Aktiv"],["u4","admin","IT-Administrator","Admin","C: / S:","Aktiv"],["u5","sekretariat","Sekretariat","Verwaltung","S:","Aktiv"],["u6","gast-07","Gastkonto 07","Gast","U:","Aktiv"],["u7","technik","Technik","Service","C:","Aktiv"]];
 const driveSeed=[{letter:"C:",name:"System",total:120,used:72,status:"Online"},{letter:"S:",name:"Schulfreigabe",total:500,used:316,status:"Online"},{letter:"U:",name:"Benutzerlaufwerk",total:250,used:129,status:"Online"},{letter:"D:",name:"Downloads",total:80,used:22,status:"Online"}];
-let files=structuredClone(initialFiles),users=usersSeed.map(a=>({id:a[0],user:a[1],name:a[2],role:a[3],drive:a[4],status:a[5]})),drives=structuredClone(driveSeed),quarantine=[],events=[],serverLocked=false,scanEvery=19,scanTimer=null,scanCount=0,scanning=false,previousResults=[];
+let files=structuredClone(initialFiles),users=usersSeed.map(a=>({id:a[0],user:a[1],name:a[2],role:a[3],drive:a[4],status:a[5]})),drives=structuredClone(driveSeed),quarantine=[],events=[],serverLocked=false,scanEvery=10,scanTimer=null,scanCount=0,scanning=false,previousResults=[];
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function time(){return new Date().toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}
 function log(msg,kind="info"){events.unshift({time:time(),msg,kind});events=events.slice(0,100)}
