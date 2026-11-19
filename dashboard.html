@@ -20,5 +20,51 @@ document.getElementById('eventCount').textContent=events?.filter(e=>e.status==='
 document.getElementById('events').innerHTML=events?.length?events.map(e=>'<div class="item"><b>'+escapeHtml(e.title)+'</b><div class="muted">'+escapeHtml(e.severity)+' · '+escapeHtml(e.status)+'</div><div>'+escapeHtml(e.description||'')+'</div></div>').join(''):'<div class="empty">Bisher keine Sicherheitsereignisse.</div>';
 }
 function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function downloadClientPackage(info){try{say('Konfigurationspaket wird erstellt…',true);const JSZip=(await import('https://esm.sh/jszip@3.10.1')).default;const zip=new JSZip();const resp=await fetch('https://raw.githubusercontent.com/LordLOLQDH/sss/main/sss_scanner.py');if(!resp.ok)throw new Error('Clientdatei konnte nicht geladen werden');const scanner=await resp.text();const settings={school_name:info.name,school_slug:info.slug,school_id:info.schoolId,edition:info.edition,backend_url:'https://pembtvbgmgpmyhhijvkg.supabase.co',scan_paths:[],exclude_paths:[],interval_minutes:10,scan_on_start:true,inspect_source_files:true,use_clamav:true,max_file_mb:100,report_dir:'reports'};zip.file('sss_scanner.py',scanner);zip.file('sss-settings.json',JSON.stringify(settings,null,2));zip.file('start_sss.bat','@echo off\r\ncd /d %~dp0\r\npy -3 sss_scanner.py\r\nif errorlevel 1 python sss_scanner.py\r\npause\r\n');zip.file('start_sss.sh','#!/bin/sh\ncd "$(dirname "$0")"\npython3 sss_scanner.py\n');zip.file('README.txt','SSS - '+info.edition.toUpperCase()+'\nSchool: '+info.name+'\nID: '+info.slug+'\n\nWindows: start_sss.bat\nmacOS/Linux: start_sss.sh (ggf. chmod +x)\n\nDie Edition ist im JSON konfiguriert. Beide Editionen nutzen aktuell dieselbe Scannerbasis. Der Prototyp sendet noch keine Scans ans Backend. Nur mit IT-Freigabe einsetzen.');const blob=await zip.generateAsync({type:'blob'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='SSS-'+info.slug+'-'+info.edition+'.zip';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2500);say('Download gestartet. Hinweis: Der Client ist noch nicht mit Supabase verbunden.',true)}catch(err){say('Downloadfehler: '+(err.message||err))}}\ndocument.getElementById('downloadAgain').onclick=()=>downloadClientPackage(window.sssDownloadInfo);\ndocument.getElementById('deleteAccount').onclick=async()=>{if(!confirm('Account dauerhaft löschen? Deine Schulmitgliedschaften werden entfernt. Schul- und Sicherheitsdaten bleiben bestehen.'))return;const password=prompt('Aktuelles Passwort zur Bestätigung:');if(!password)return;const {data:{user}}=await sb.auth.getUser();const {error:authErr}=await sb.auth.signInWithPassword({email:user.email,password});if(authErr){say('Passwort falsch: '+authErr.message);return}const {error}=await sb.functions.invoke('delete-account',{body:{confirmation:'DELETE_MY_ACCOUNT'}});if(error){say('Löschen fehlgeschlagen: '+error.message);return}await sb.auth.signOut();say('Account wurde gelöscht.');setTimeout(()=>location.replace('index.html'),700)};\ndocument.getElementById('schoolForm').addEventListener('submit',async e=>{e.preventDefault();const name=document.getElementById('schoolName').value.trim(),slug=document.getElementById('schoolSlug').value.trim().toLowerCase();const edition=document.getElementById('schoolEdition').value;const {data,error}=await sb.rpc('register_school',{school_name:name,school_slug:slug,school_edition:edition});if(error)say(error.message);else{window.sssDownloadInfo={name,slug,edition,schoolId:data};document.getElementById('downloadActions').style.display='block';await downloadClientPackage(window.sssDownloadInfo)}});
+async function downloadClientPackage(info){
+ try{
+  say('Konfigurationspaket wird erstellt…',true);
+  const JSZip=(await import('https://esm.sh/jszip@3.10.1')).default;
+  const zip=new JSZip();
+  const resp=await fetch('https://raw.githubusercontent.com/LordLOLQDH/sss/main/sss_scanner.py');
+  if(!resp.ok) throw new Error('Clientdatei konnte nicht geladen werden');
+  const scanner=await resp.text();
+  const settings={school_name:info.name,school_slug:info.slug,school_id:info.schoolId,edition:info.edition,backend_url:'https://pembtvbgmgpmyhhijvkg.supabase.co',scan_paths:[],exclude_paths:[],interval_minutes:10,scan_on_start:true,inspect_source_files:true,use_clamav:true,max_file_mb:100,report_dir:'reports'};
+  zip.file('sss_scanner.py',scanner);
+  zip.file('sss-settings.json',JSON.stringify(settings,null,2));
+  zip.file('start_sss.bat',`@echo off
+cd /d %~dp0
+py -3 sss_scanner.py
+if errorlevel 1 python sss_scanner.py
+pause
+`);
+  zip.file('start_sss.sh',`#!/bin/sh
+cd "$(dirname "$0")"
+python3 sss_scanner.py
+`);
+  zip.file('README.txt',`SSS - ${info.edition.toUpperCase()}
+School: ${info.name}
+ID: ${info.slug}
+
+Windows: start_sss.bat
+macOS/Linux: start_sss.sh (ggf. chmod +x)
+
+Die Edition ist in der Konfiguration gespeichert. Beide Editionen nutzen aktuell dieselbe Scannerbasis. Der Prototyp sendet noch keine Scans ans Backend. Nur mit IT-Freigabe einsetzen.`);
+  const blob=await zip.generateAsync({type:'blob'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='SSS-'+info.slug+'-'+info.edition+'.zip';a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2500);
+  say('Download gestartet. Hinweis: Der Client ist noch nicht mit Supabase verbunden.',true);
+ }catch(err){say('Downloadfehler: '+(err.message||err))}
+}
+document.getElementById('downloadAgain').onclick=()=>downloadClientPackage(window.sssDownloadInfo);
+document.getElementById('deleteAccount').onclick=async()=>{
+ if(!confirm('Account dauerhaft löschen? Deine Schulmitgliedschaften werden entfernt. Schul- und Sicherheitsdaten bleiben bestehen.'))return;
+ const password=prompt('Aktuelles Passwort zur Bestätigung:');if(!password)return;
+ const {data:{user}}=await sb.auth.getUser();
+ const {error:authErr}=await sb.auth.signInWithPassword({email:user.email,password});
+ if(authErr){say('Passwort falsch: '+authErr.message);return}
+ const {error}=await sb.functions.invoke('delete-account',{body:{confirmation:'DELETE_MY_ACCOUNT'}});
+ if(error){say('Löschen fehlgeschlagen: '+error.message);return}
+ await sb.auth.signOut();say('Account wurde gelöscht.');setTimeout(()=>location.replace('index.html'),700)
+};
+document.getElementById('schoolForm').addEventListener('submit',async e=>{e.preventDefault();const name=document.getElementById('schoolName').value.trim(),slug=document.getElementById('schoolSlug').value.trim().toLowerCase();const edition=document.getElementById('schoolEdition').value;const {data,error}=await sb.rpc('register_school',{school_name:name,school_slug:slug,school_edition:edition});if(error)say(error.message);else{window.sssDownloadInfo={name,slug,edition,schoolId:data};document.getElementById('downloadActions').style.display='block';await downloadClientPackage(window.sssDownloadInfo)}});
 </script></body></html>
