@@ -2,47 +2,53 @@
 
 **Schulserver-Sicherheit. Entwickelt von Adam Gabriel Kraus.**
 
-SchoolServer Security ist ein Entwicklungsprojekt für die Überwachung und Sicherheitsanalyse von Dateien auf Schulservern.
+SchoolServer Security ist ein Entwicklungsprojekt für die lokale Datei-Sicherheitsprüfung.
 
 🌐 **Projektwebsite:** https://lordlolqdh.github.io/sss/  
 📦 **Quellcode:** https://github.com/LordLOLQDH/sss
 
-## Zielplattform
+## Aktueller Desktop-Client
 
-SSS entwickelt sich von einem lokalen Scanner zu einer zentral verwalteten Schul-Sicherheitsplattform mit Web-Control-Center, Backend, Client-Agent, Ereignissen, Updates und zwei Editionen: **SSS Standard** und **SSS Professional**.
+Version 0.1.0 enthält:
+- Modernes Desktop-GUI auf Basis von PySide6 (sss_gui.py)
+- Manuelle, lesende Scans konfigurierter Ordner
+- SHA-256-Hashes
+- EICAR-Testsignatur und einfache Textmuster
+- Optionale ClamAV-Anbindung (wenn clamscan installiert ist)
+- Ausschlussordner, Dateigrößenlimit und Scanoptionen
+- JSON-Berichtexport
+- Logo im Desktopfenster
+
+Die GUI greift auf die vorhandenen Scanfunktionen aus sss_scanner.py zurück. Die alte Tkinter-Oberfläche ist dort weiterhin vorhanden, wird aber durch die Startskripte nicht mehr als Standard gestartet.
 
 
-## Editionen
+## Start
 
-- **SSS Standard:** lokaler Client, regelmäßige Prüfungen, Datei-/Log-Ereignisse, Dashboard, Status und Updates.
-- **SSS Professional:** Standard plus Multi-Server-/Standortverwaltung, erweiterte Regeln, Audit, Analyse und Integrationen.
+Voraussetzung: Python 3.10 oder neuer. Beim ersten Start wird PySide6 anhand von requirements.txt installiert (Internetverbindung erforderlich).
 
-Details und Abgrenzung stehen in [docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md). Funktionen in dieser Zielarchitektur sind noch nicht automatisch implementiert.
+- Windows: start_sss.bat
+- Linux/macOS: start_sss.sh
+
+ClamAV ist optional und muss separat installiert sein, damit clamscan verfügbar ist.
 
 
-## Aktueller Client-Prototyp
+## Editionen und Plattform-Konzept
 
-Version 0.1.0 enthält einen Python-Desktop-Prototyp unter `sss_scanner.py`. Er bietet manuelle, lesende Ordnerscans, optionale ClamAV-Anbindung und JSON-Berichte. Die Intervall-Einstellung ist noch kein aktiver Scheduler. Die automatische Installation von Updates ist noch nicht vorhanden.
+Standard und Professional sind derzeit Konfigurationsprofile im Control Center. Sie schalten noch keine unterschiedlichen Scanner-Funktionen frei. Backend, Cloud-Synchronisierung, zentrale Liveüberwachung, Multi-Serververwaltung, automatische Updates und echte serverseitige Rollen sind noch nicht implementiert.
+
 
 ## Dokumentation
 
 - [Installations- und Nutzungshinweise](docs/INSTALLATION.md)
-- [Programm-Anleitung](docs/PROGRAMM.md)\n- [Updater-Status](docs/UPDATER.md)\n- [Sicherheits- und Datenschutzkonzept](docs/SECURITY.md)
+- [Programm-Anleitung](docs/PROGRAMM.md)
+- [Updater-Status](docs/UPDATER.md)
+- [Sicherheits- und Datenschutzkonzept](docs/SECURITY.md)
+
 
 ## Entwicklungsstatus
 
-**Prototyp 0.1.0 – nicht produktionsbereit.** Ein einfacher Desktop-Scanner ist vorhanden. Er ersetzt keinen Virenschutz. Automatische Zeitplanung, automatische Updates, Installer, geschützte Quarantäne und produktionsreife Erkennung sind noch nicht enthalten.
+**Prototyp 0.1.0 – nicht produktionsbereit.** Scans sind lesend. Textmuster können Fehlalarme auslösen und Malware übersehen. Der Scanner ist kein Ersatz für einen professionellen Virenschutz. Bitte nicht auf einem echten Schulserver einsetzen, bevor die zuständige IT den Code geprüft und den Einsatz freigegeben hat.
 
-Bitte nicht auf einem echten Schulserver einsetzen, bevor die zuständige Schul-IT den Code geprüft und den Einsatz ausdrücklich freigegeben hat.
-
-## Technische Leitlinien
-
-- Keine Ausführung unbekannter Dateien während der Analyse
-- Isolierte Parser und Analyseprozesse
-- Klassische Erkennung (z. B. ClamAV/YARA) ergänzend zur KI
-- Lokale Analyse als Datenschutzstandard
-- Restriktive, serverseitige Rechte für die Quarantäne
-- Dokumentierte und wiederherstellbare Dateiaktionen
 
 ---
 
