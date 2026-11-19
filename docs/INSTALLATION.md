@@ -3,52 +3,37 @@
 **SchoolServer Security (SSS)**  
 Entwickelt von Adam Gabriel Kraus
 
-## Entwicklungsstatus
+## Aktueller Desktop-Client
 
-SSS ist ein umfangreiches Entwicklungsprojekt. Der vorhandene Scanner ist ein Prototyp; die zentrale Plattform, Schul-Accounts, Client-Enrollment, Updateinstallation und rollenbasierte Dashboards sind Zielkomponenten und noch nicht vollständig implementiert.
+Der Desktop-Prototyp verwendet PySide6 und startet über die Launcher. Python 3.10+ wird benötigt. Beim ersten Start installieren die Startskripte PySide6 via pip (Internetverbindung nötig).
 
-**Keine Installation auf echten Schulservern ohne ausdrückliche Freigabe durch die zuständige Schul-IT.** Aktuelle Versionen nicht mit produktiver Schutzsoftware verwechseln.
+- Windows: start_sss.bat
+- Linux/macOS: start_sss.sh
+- Alternativ: pip install -r requirements.txt und python sss_gui.py
+
+ClamAV ist optional. Es muss separat installiert sein und der Befehl clamscan im PATH verfügbar sein. Das Programm zeigt in der GUI das vorhandene Scanresultat, es führt ClamAV nicht mit.
 
 
-## Quellcode beziehen
+## Projektstatus und Sicherheitswarnung
 
-```bash
-git clone https://github.com/LordLOLQDH/sss.git
-cd sss
-```
+SSS ist ein Entwicklungsprototyp. Die aktuelle Scannerlogik prüft lesend auf EICAR, SHA-256 und einfache verdächtige Textmuster; bei Quellcode-Dateien werden Prüfhinweise markiert. Es kann Fehlalarme geben und Malware übersehen. Kein produktiver Virenschutz.
 
-Alternativ kann über GitHub **Code → Download ZIP** das Repository als ZIP-Datei heruntergeladen werden.
 
-## Zielplattform
+## Schul-Konfiguration ZIP
 
-Die geplante Plattform besteht aus SSS Client, Backend/API, Web-Control-Center, Update-Service und Analyse-Engine. Zwei Editionen sind vorgesehen: SSS Standard und SSS Professional.
+Das Control Center erzeugt lokal ein ZIP-Starterpaket mit Konfigurationsdatei, GUI, Scanner, Logo und Startskripten. Standard und Professional sind momentan Konfigurationsprofile; sie unterscheiden sich noch nicht in Scannerfunktionen.
 
-- [Architektur und Roadmap](ARCHITEKTUR.md)
-- [Updater-Konzept](UPDATER.md)
 
-## Geplanter Ablauf für einen späteren Testbetrieb
+## Geplanter Plattformausbau
 
-1. Testumgebung ohne echte Schülerdaten einrichten.
-2. Nur eigens dafür erstellte Testordner konfigurieren.
-3. Zunächst ausschließlich lesenden Scanmodus verwenden.
-4. Ergebnisse und Fehlalarme prüfen.
-5. Quarantäne und Wiederherstellung mit Testdateien validieren.
-6. Rechte, Protokollierung, Datenschutz und Notfall-Wiederherstellung durch die Schul-IT prüfen lassen.
-7. Erst nach formaler Freigabe einen begrenzten Pilotbetrieb starten.
+Zentrale Plattform, Accounts, Client-Enrollment, Backend/API, automatische Updateinstallation und rollenbasierte Dashboards sind noch nicht vollständig implementiert.
 
-## Sicherheit und Datenschutz
 
-- Unbekannte Dateien niemals zur Analyse ausführen.
-- Parser und Analysewerkzeuge in einer isolierten Umgebung mit Ressourcenlimits betreiben.
-- Externe KI-Dienste nicht mit Schüler- oder Lehrerdokumenten füttern, solange keine ausdrückliche Datenschutzfreigabe vorliegt.
-- Quarantäne mit restriktiven serverseitigen Zugriffsrechten absichern.
-- Jede Verschiebung und Freigabe protokollieren.
-- Vor Quarantäneaktionen Dateihash, ursprünglichen Pfad und Wiederherstellungsinformationen sichern.
-- Keine automatische Löschung als Standardaktion verwenden.
+## Testempfehlung
 
-## Projekt
-
-**SchoolServer Security (SSS)**  
-by Adam Gabriel Kraus
+1. Nur einen eigenen, eigens angelegten Testordner scannen.
+2. Scanordner und Ausschlüsse vor dem Scan kontrollieren.
+3. Keine echten Schulserver oder sensible Daten einbinden.
+4. Erst nach Prüfung und Freigabe durch die zuständige Schul-IT einen Testbetrieb erwägen.
 
 Repository: https://github.com/LordLOLQDH/sss
