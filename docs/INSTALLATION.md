@@ -5,9 +5,10 @@ Entwickelt von Adam Gabriel Kraus
 
 ## Entwicklungsstatus
 
-SSS befindet sich in der Entwicklung. Dieses Repository enthält derzeit die Projektwebsite und die technische Planung. Es gibt noch keinen produktionsreifen Scanner, keinen getesteten Dienst und keinen freigegebenen Installer.
+SSS ist ein umfangreiches Entwicklungsprojekt. Der vorhandene Scanner ist ein Prototyp; die zentrale Plattform, Schul-Accounts, Client-Enrollment, Updateinstallation und rollenbasierte Dashboards sind Zielkomponenten und noch nicht vollständig implementiert.
 
-**Nicht auf einem echten Schulserver installieren oder automatische Dateiaktionen aktivieren, bevor die zuständige Schul-IT den Code geprüft und den Einsatz ausdrücklich freigegeben hat.**
+**Keine Installation auf echten Schulservern ohne ausdrückliche Freigabe durch die zuständige Schul-IT.** Aktuelle Versionen nicht mit produktiver Schutzsoftware verwechseln.
+
 
 ## Quellcode beziehen
 
@@ -18,17 +19,12 @@ cd sss
 
 Alternativ kann über GitHub **Code → Download ZIP** das Repository als ZIP-Datei heruntergeladen werden.
 
-## Geplante Komponenten
+## Zielplattform
 
-- Konfigurierbare Laufwerke und Ordner
-- Regelmäßiger Scan (Standardziel: alle 10 Minuten)
-- Inhaltsanalyse abhängig vom tatsächlichen Dateityp
-- Intensivprüfung von Quellcode und Skripten
-- Malware-Signaturen und YARA-Regeln
-- Lokale KI-gestützte Analyse, sofern datenschutzrechtlich freigegeben
-- Geschützte Quarantäne außerhalb normaler Freigaben
-- Administratorprüfung, Freigabe und Audit-Protokoll
-- SHA-256-basierte Wiedererkennung unveränderter Dateien
+Die geplante Plattform besteht aus SSS Client, Backend/API, Web-Control-Center, Update-Service und Analyse-Engine. Zwei Editionen sind vorgesehen: SSS Standard und SSS Professional.
+
+- [Architektur und Roadmap](ARCHITEKTUR.md)
+- [Updater-Konzept](UPDATER.md)
 
 ## Geplanter Ablauf für einen späteren Testbetrieb
 
