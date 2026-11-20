@@ -9,6 +9,7 @@ from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import *
 from sss_core import APP_NAME,VERSION,DATA_DIR,QUARANTINE,inspect,iter_files
 from sss_ai import status as ai_status,explain as ai_explain,DEFAULT_MODEL
+from sss_updater import check as update_check,download_and_launch
 CONFIG=DATA_DIR/"settings.json"
 DEFAULT={"scan_dirs":[str(Path.home()/"Downloads"),str(Path.home()/"Desktop")],"excluded_dirs":[],"interval_minutes":10,"max_file_mb":200,"ai_enabled":True,"ai_model":DEFAULT_MODEL}
 STYLE="""QWidget{background:#f4f7f6;color:#172b22;font-family:'Segoe UI';font-size:13px} QFrame#card{background:white;border:1px solid #dfe8e2;border-radius:14px} QPushButton{background:white;border:1px solid #dfe8e2;border-radius:9px;padding:9px 13px;font-weight:600} QPushButton:hover{background:#edf5ef} QPushButton#primary{background:#159653;color:white;border-color:#159653} QTableWidget{background:white;border:1px solid #dfe8e2;border-radius:12px;selection-background-color:#e7f4eb} QHeaderView::section{background:#f8faf9;border:0;padding:10px;color:#718078;font-weight:700}"""
@@ -31,6 +32,9 @@ class AIWorker(QObject):
 class StatusWorker(QObject):
  done=Signal(dict)
  def run(self):self.done.emit(ai_status())
+class UpdateWorker(QObject):
+ done=Signal(dict)
+ def run(self):self.done.emit(update_check(VERSION))
 class Main(QMainWindow):
  def __init__(self):
   super().__init__();self.c=load_cfg();self.rows=[];self.busy=False;self.ai_online=False;self.next=time.monotonic()+self.c["interval_minutes"]*60
@@ -39,7 +43,7 @@ class Main(QMainWindow):
  def build(self):
   central=QWidget();self.setCentralWidget(central);l=QVBoxLayout(central);l.setContentsMargins(26,22,26,22);l.setSpacing(15)
   header=QHBoxLayout();titles=QVBoxLayout();titles.setSpacing(1);h=QLabel("SchoolServer Security");h.setStyleSheet("font-size:22px;font-weight:850");sub=QLabel(f"SSS 2.0 · Local Security Engine · {VERSION}");sub.setStyleSheet("color:#718078");titles.addWidget(h);titles.addWidget(sub);header.addLayout(titles);header.addStretch();self.ai_label=QLabel("LOCAL KI · wird geprüft");self.ai_label.setStyleSheet("font-weight:750");header.addWidget(self.ai_label);self.ai_setup_btn=QPushButton("KI einrichten");self.ai_setup_btn.clicked.connect(self.ai_setup);header.addWidget(self.ai_setup_btn);l.addLayout(header)
-  intro=QHBoxLayout();txt=QVBoxLayout();headline=QLabel("Sicherheitsübersicht");headline.setStyleSheet("font-size:27px;font-weight:850");desc=QLabel("Automatische lokale Prüfungen. Dateiaktionen erfolgen nachvollziehbar und mit Bestätigung.");desc.setStyleSheet("color:#718078");txt.addWidget(headline);txt.addWidget(desc);intro.addLayout(txt);intro.addStretch();self.scan_btn=QPushButton("Jetzt prüfen");self.scan_btn.setObjectName("primary");self.scan_btn.clicked.connect(self.scan);intro.addWidget(self.scan_btn);self.settings_btn=QPushButton("Einstellungen");self.settings_btn.clicked.connect(self.settings);intro.addWidget(self.settings_btn);l.addLayout(intro)
+  intro=QHBoxLayout();txt=QVBoxLayout();headline=QLabel("Sicherheitsübersicht");headline.setStyleSheet("font-size:27px;font-weight:850");desc=QLabel("Automatische lokale Prüfungen. Dateiaktionen erfolgen nachvollziehbar und mit Bestätigung.");desc.setStyleSheet("color:#718078");txt.addWidget(headline);txt.addWidget(desc);intro.addLayout(txt);intro.addStretch();self.scan_btn=QPushButton("Jetzt prüfen");self.scan_btn.setObjectName("primary");self.scan_btn.clicked.connect(self.scan);intro.addWidget(self.scan_btn);self.settings_btn=QPushButton("Einstellungen");self.settings_btn.clicked.connect(self.settings);intro.addWidget(self.settings_btn);self.update_btn=QPushButton("Updates");self.update_btn.clicked.connect(self.check_updates);intro.addWidget(self.update_btn);l.addLayout(intro)
   cards=QHBoxLayout();self.files=self.card("Geprüfte Dateien","—");self.flags=self.card("Auffälligkeiten","—");self.countdown=self.card("Nächste Prüfung","—");self.ai_card=self.card("Lokale KI","Status");[cards.addWidget(x) for x in [self.files,self.flags,self.countdown,self.ai_card]];l.addLayout(cards)
   bar=QHBoxLayout();bar.addWidget(QLabel("Prüfergebnisse"));bar.addStretch();self.status=QLabel("Bereit");self.status.setStyleSheet("color:#718078");bar.addWidget(self.status);self.quarantine_btn=QPushButton("In Quarantäne verschieben");self.quarantine_btn.clicked.connect(self.quarantine);bar.addWidget(self.quarantine_btn);self.ai_btn=QPushButton("KI-Erklärung");self.ai_btn.clicked.connect(self.explain);bar.addWidget(self.ai_btn);l.addLayout(bar)
   self.progress=QProgressBar();self.progress.setTextVisible(False);self.progress.setFixedHeight(5);self.progress.hide();l.addWidget(self.progress)
@@ -87,6 +91,20 @@ class Main(QMainWindow):
   self.ai_btn.setEnabled(False);self.ai_btn.setText("KI analysiert…");self.ai_thread=QThread(self);self.ai_worker=AIWorker(r,self.c.get("ai_model",DEFAULT_MODEL));self.ai_worker.moveToThread(self.ai_thread);self.ai_thread.started.connect(self.ai_worker.run);self.ai_worker.done.connect(self.ai_result);self.ai_worker.done.connect(self.ai_thread.quit);self.ai_worker.done.connect(self.ai_worker.deleteLater);self.ai_thread.finished.connect(self.ai_thread.deleteLater);self.ai_thread.start()
  def ai_result(self,r):
   self.ai_btn.setEnabled(True);self.ai_btn.setText("KI-Erklärung");dlg=QDialog(self);dlg.setWindowTitle("Lokale KI-Erklärung");dlg.resize(650,480);v=QVBoxLayout(dlg);out=QTextEdit();out.setReadOnly(True);out.setPlainText(r.get("text") if r.get("ok") else r.get("error","Keine KI-Antwort"));v.addWidget(out);close=QPushButton("Schließen");close.clicked.connect(dlg.accept);v.addWidget(close);dlg.exec()
+ def check_updates(self):
+  self.update_btn.setEnabled(False);self.update_btn.setText("Suche Updates…")
+  self.up_thread=QThread(self);self.up_worker=UpdateWorker();self.up_worker.moveToThread(self.up_thread)
+  self.up_thread.started.connect(self.up_worker.run);self.up_worker.done.connect(self.update_result)
+  self.up_worker.done.connect(self.up_thread.quit);self.up_worker.done.connect(self.up_worker.deleteLater);self.up_thread.finished.connect(self.up_thread.deleteLater);self.up_thread.start()
+ def update_result(self,result):
+  self.update_btn.setEnabled(True);self.update_btn.setText("Updates")
+  if not result.get("ok"):QMessageBox.warning(self,"Update-Prüfung",result.get("error","Updateprüfung fehlgeschlagen"));return
+  if not result.get("update_available"):QMessageBox.information(self,"SSS Update",f"SSS ist aktuell. Installierte Version: {VERSION}");return
+  latest=result.get("latest","?")
+  if QMessageBox.question(self,"Update verfügbar",f"Version {latest} ist verfügbar.\n\nJetzt herunterladen und installieren?\n\n{result.get('notes','')}")!=QMessageBox.Yes:return
+  download=download_and_launch(result.get("installer"))
+  if download.get("ok"):QMessageBox.information(self,"Updater","Installer gestartet. SSS wird geschlossen.");self.close()
+  else:QMessageBox.critical(self,"Update",download.get("error","Update fehlgeschlagen"))
  def ai_setup(self):
   d=QDialog(self);d.setWindowTitle("SSS · Lokale KI einrichten");d.resize(540,420);layout=QVBoxLayout(d)
   title=QLabel("Lokale KI aktivieren");title.setStyleSheet("font-size:21px;font-weight:800");layout.addWidget(title)
