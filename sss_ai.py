@@ -17,7 +17,7 @@ def explain(result,model=DEFAULT_MODEL):
  try:
   if p.suffix.lower() in TEXT_EXTENSIONS and p.is_file():
    raw=p.read_bytes()[:MAX_AI_BYTES]
-   if b"\\x00" not in raw:
+   if b"\x00" not in raw:
     content=raw.decode("utf-8",errors="replace")
     content_note="File text supplied to local model; truncated to 80 KB maximum." if p.stat().st_size>MAX_AI_BYTES else "Full text content of this text file supplied to local model."
  except Exception as e:content_note="Unable to read file content: "+str(e)
