@@ -7,7 +7,7 @@ from PySide6.QtCore import Qt,QObject,Signal,QThread,QTimer
 from PySide6.QtGui import QFont, QDesktopServices
 from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import *
-from sss_core import APP_NAME,VERSION,DATA_DIR,QUARANTINE,inspect,iter_files
+from sss_core import APP_NAME,VERSION,DATA_DIR,QUARANTINE,inspect,iter_files,sha256
 from sss_ai import status as ai_status,explain as ai_explain,DEFAULT_MODEL
 from sss_updater import check as update_check,download_and_launch
 CONFIG=DATA_DIR/"settings.json"
@@ -45,7 +45,7 @@ class Main(QMainWindow):
   header=QHBoxLayout();titles=QVBoxLayout();titles.setSpacing(1);h=QLabel("SchoolServer Security");h.setStyleSheet("font-size:22px;font-weight:850");sub=QLabel(f"SSS 2.0 · Local Security Engine · {VERSION}");sub.setStyleSheet("color:#718078");titles.addWidget(h);titles.addWidget(sub);header.addLayout(titles);header.addStretch();self.ai_label=QLabel("LOCAL KI · wird geprüft");self.ai_label.setStyleSheet("font-weight:750");header.addWidget(self.ai_label);self.ai_setup_btn=QPushButton("KI einrichten");self.ai_setup_btn.clicked.connect(self.ai_setup);header.addWidget(self.ai_setup_btn);l.addLayout(header)
   intro=QHBoxLayout();txt=QVBoxLayout();headline=QLabel("Sicherheitsübersicht");headline.setStyleSheet("font-size:27px;font-weight:850");desc=QLabel("Automatische lokale Prüfungen. Dateiaktionen erfolgen nachvollziehbar und mit Bestätigung.");desc.setStyleSheet("color:#718078");txt.addWidget(headline);txt.addWidget(desc);intro.addLayout(txt);intro.addStretch();self.scan_btn=QPushButton("Jetzt prüfen");self.scan_btn.setObjectName("primary");self.scan_btn.clicked.connect(self.scan);intro.addWidget(self.scan_btn);self.settings_btn=QPushButton("Einstellungen");self.settings_btn.clicked.connect(self.settings);intro.addWidget(self.settings_btn);self.update_btn=QPushButton("Updates");self.update_btn.clicked.connect(self.check_updates);intro.addWidget(self.update_btn);l.addLayout(intro)
   cards=QHBoxLayout();self.files=self.card("Geprüfte Dateien","—");self.flags=self.card("Auffälligkeiten","—");self.countdown=self.card("Nächste Prüfung","—");self.ai_card=self.card("Lokale KI","Status");[cards.addWidget(x) for x in [self.files,self.flags,self.countdown,self.ai_card]];l.addLayout(cards)
-  bar=QHBoxLayout();bar.addWidget(QLabel("Prüfergebnisse"));bar.addStretch();self.status=QLabel("Bereit");self.status.setStyleSheet("color:#718078");bar.addWidget(self.status);self.quarantine_btn=QPushButton("In Quarantäne verschieben");self.quarantine_btn.clicked.connect(self.quarantine);bar.addWidget(self.quarantine_btn);self.ai_btn=QPushButton("KI-Erklärung");self.ai_btn.clicked.connect(self.explain);bar.addWidget(self.ai_btn);l.addLayout(bar)
+  bar=QHBoxLayout();bar.addWidget(QLabel("Prüfergebnisse"));bar.addStretch();self.status=QLabel("Bereit");self.status.setStyleSheet("color:#718078");bar.addWidget(self.status);self.quarantine_btn=QPushButton("In Quarantäne verschieben");self.quarantine_btn.clicked.connect(self.quarantine);bar.addWidget(self.quarantine_btn);self.manage_quarantine_btn=QPushButton("Quarantäne verwalten");self.manage_quarantine_btn.clicked.connect(self.manage_quarantine);bar.addWidget(self.manage_quarantine_btn);self.ai_btn=QPushButton("KI-Erklärung");self.ai_btn.clicked.connect(self.explain);bar.addWidget(self.ai_btn);l.addLayout(bar)
   self.progress=QProgressBar();self.progress.setTextVisible(False);self.progress.setFixedHeight(5);self.progress.hide();l.addWidget(self.progress)
   self.table=QTableWidget(0,4);self.table.setHorizontalHeaderLabels(["RISIKO","DATEIPFAD","SHA-256","PRÜFHINWEISE"]);self.table.horizontalHeader().setSectionResizeMode(0,QHeaderView.ResizeToContents);self.table.horizontalHeader().setSectionResizeMode(1,QHeaderView.Stretch);self.table.horizontalHeader().setSectionResizeMode(2,QHeaderView.ResizeToContents);self.table.horizontalHeader().setSectionResizeMode(3,QHeaderView.Stretch);self.table.verticalHeader().hide();self.table.setSelectionBehavior(QAbstractItemView.SelectRows);self.table.setEditTriggers(QAbstractItemView.NoEditTriggers);l.addWidget(self.table,1)
   foot=QLabel("Hinweis: SSS ist ein Sicherheitsassistenz-Prototyp und kein zertifizierter Virenschutz. Keine Datei wird ausgeführt.");foot.setStyleSheet("color:#718078;font-size:11px");l.addWidget(foot)
@@ -84,6 +84,35 @@ class Main(QMainWindow):
    shutil.move(str(src),str(target));metadata={"source":str(src),"target":str(target),"sha256":r.get("sha256"),"risk":r.get("risk"),"reasons":r.get("reasons"),"date":datetime.now().isoformat()}
    target.with_suffix(target.suffix+".json").write_text(json.dumps(metadata,indent=2,ensure_ascii=False),encoding="utf-8");QMessageBox.information(self,"SSS","Datei in Quarantäne verschoben.");self.scan()
   except Exception as e:QMessageBox.critical(self,"Fehler",str(e))
+ def manage_quarantine(self):
+  QUARANTINE.mkdir(parents=True,exist_ok=True)
+  d=QDialog(self);d.setWindowTitle("SSS · Quarantäne");d.resize(760,440);layout=QVBoxLayout(d)
+  t=QTableWidget(0,3);t.setHorizontalHeaderLabels(["DATEI","RISIKO","ORIGINALPFAD"]);t.horizontalHeader().setSectionResizeMode(0,QHeaderView.ResizeToContents);t.horizontalHeader().setSectionResizeMode(1,QHeaderView.ResizeToContents);t.horizontalHeader().setSectionResizeMode(2,QHeaderView.Stretch);t.setSelectionBehavior(QAbstractItemView.SelectRows);t.setEditTriggers(QAbstractItemView.NoEditTriggers);t.verticalHeader().hide()
+  entries=[]
+  for f in QUARANTINE.glob("*.quarantined"):
+   meta=f.with_suffix(f.suffix+".json")
+   try:m=json.loads(meta.read_text(encoding="utf-8"))
+   except: m={}
+   entries.append((f,m))
+  t.setRowCount(len(entries))
+  for i,(f,m) in enumerate(entries):
+   for j,v in enumerate([f.name,m.get("risk","?"),m.get("source","metadata missing")]):t.setItem(i,j,QTableWidgetItem(str(v)))
+  layout.addWidget(t)
+  actions=QHBoxLayout();restore=QPushButton("Ausgewählte Datei wiederherstellen");close=QPushButton("Schließen");actions.addWidget(restore);actions.addStretch();actions.addWidget(close);layout.addLayout(actions);close.clicked.connect(d.accept)
+  def do_restore():
+   row=t.currentRow()
+   if row<0:QMessageBox.information(d,"Quarantäne","Eintrag auswählen.");return
+   qfile,meta=entries[row];original=Path(meta.get("source",""))
+   if not original.is_absolute():QMessageBox.critical(d,"Restore blockiert","Ursprungspfad fehlt in den Metadaten.");return
+   if original.exists():QMessageBox.warning(d,"Restore blockiert","Am ursprünglichen Speicherort existiert bereits eine Datei. Sie wird nicht überschrieben.");return
+   if QMessageBox.question(d,"Wiederherstellen",f"Datei an den ursprünglichen Ort zurückverschieben?\n\n{original}")!=QMessageBox.Yes:return
+   try:
+    original.parent.mkdir(parents=True,exist_ok=True);shutil.move(str(qfile),str(original))
+    if meta.get("sha256") and sha256(original)!=meta["sha256"]:
+     shutil.move(str(original),str(qfile));QMessageBox.critical(d,"Hashprüfung fehlgeschlagen","Datei wurde zurück in Quarantäne verschoben.");return
+    qfile.with_suffix(qfile.suffix+".json").unlink(missing_ok=True);QMessageBox.information(d,"SSS","Datei wiederhergestellt.");d.accept()
+   except Exception as e:QMessageBox.critical(d,"Restore fehlgeschlagen",str(e))
+  restore.clicked.connect(do_restore);d.exec()
  def explain(self):
   r=self.selected()
   if not r:QMessageBox.information(self,"Lokale KI","Datei in der Tabelle auswählen.");return
