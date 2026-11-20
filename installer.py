@@ -45,7 +45,7 @@ def gui():
     class Installer(QObject):
         status=Signal(str);progress=Signal(int);finished=Signal(bool,str)
         def run(self):
-            try: self.install();self.finished.emit(True,"SSS 3.0 wurde erfolgreich installiert.")
+            try: self.install();self.finished.emit(True,"SSS 3.1 wurde erfolgreich installiert.")
             except Exception as e:self.finished.emit(False,str(e))
         def say(self,s):self.status.emit(s)
         def pct(self,n):self.progress.emit(n)
@@ -86,7 +86,7 @@ def gui():
                 venv=APP/"venv"
                 run_hidden([sys.executable,"-m","venv","--copies",str(venv)],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
                 py=venv/"Scripts"/"python.exe"
-                if not py.is_file():raise RuntimeError("Virtuelle Python-Umgebung konnte nicht angelegt werden.")
+                if not py.is_file() or not (venv/"pyvenv.cfg").is_file():raise RuntimeError("Virtuelle Python-Umgebung unvollständig: python.exe oder pyvenv.cfg fehlt.")
                 self.say("4/6 · GUI- und Programm-Pakete werden still im Hintergrund installiert…")
                 piplog=tmp/"pip-install.log"
                 # Bootstrap pip inside the venv without invoking the fragile pip.exe launcher.
@@ -136,10 +136,10 @@ def gui():
                 self.pct(100)
             finally:shutil.rmtree(tmp,ignore_errors=True)
     app=QApplication(sys.argv);app.setFont(QFont("Segoe UI",10))
-    w=QWidget();w.setWindowTitle("SchoolServer Security · Setup 3.0");w.setFixedSize(620,420)
+    w=QWidget();w.setWindowTitle("SchoolServer Security · Setup 3.1");w.setFixedSize(620,420)
     w.setStyleSheet("QWidget{background:#f4f7f6;color:#183126;font-family:'Segoe UI'} QLabel#title{font-size:24px;font-weight:800} QLabel#muted{color:#6c7b72} QFrame#panel{background:white;border:1px solid #e0e8e2;border-radius:14px} QPushButton{background:#159653;color:white;border:0;border-radius:9px;padding:11px 18px;font-weight:700} QPushButton:disabled{background:#b8c8be} QProgressBar{height:13px;border:0;border-radius:6px;background:#e8eeea} QProgressBar::chunk{background:#159653;border-radius:6px}")
     layout=QVBoxLayout(w);layout.setContentsMargins(26,24,26,24);layout.setSpacing(13)
-    brand=QLabel("SCHOOLSERVER SECURITY · SETUP 3.0");brand.setStyleSheet("color:#159653;font-size:11px;font-weight:900")
+    brand=QLabel("SCHOOLSERVER SECURITY · SETUP 3.1");brand.setStyleSheet("color:#159653;font-size:11px;font-weight:900")
     layout.addWidget(brand);title=QLabel("SSS wird installiert");title.setObjectName("title");layout.addWidget(title)
     intro=QLabel("Grafische Installation. Benötigte Komponenten, Ollama und das lokale KI-Modell werden automatisch eingerichtet.");intro.setWordWrap(True);intro.setObjectName("muted");layout.addWidget(intro)
     panel=QFrame();panel.setObjectName("panel");p=QVBoxLayout(panel);p.setContentsMargins(16,16,16,16);p.setSpacing(10)
