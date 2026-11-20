@@ -1,1 +1,1 @@
-{"name":"SchoolServer Security","version":"2.0.0","channel":"development","notes":"SSS 2.0 local GUI and scanner engine. Updater not yet implemented."}
+{"name":"SchoolServer Security","version":"2.0.1","channel":"stable","notes":"Source updater downloads and installs updates directly from the repository main branch. Releases and EXE not required."}
