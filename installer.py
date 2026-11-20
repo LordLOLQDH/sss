@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """SSS Windows setup: installs SSS, Ollama, and a local AI model."""
-import os,sys,shutil,tempfile,urllib.request,zipfile,subprocess,pathlib,time,base64
+import os,sys,shutil,tempfile,urllib.request,zipfile,subprocess,pathlib,time,base64,base64
 REPO="https://github.com/LordLOLQDH/sss/archive/refs/heads/main.zip"
 OLLAMA="https://ollama.com/download/OllamaSetup.exe"
 MODEL="qwen2.5:3b"
@@ -18,11 +18,12 @@ def ollama_path():
  for p in [pathlib.Path(os.environ.get("LOCALAPPDATA",""))/"Programs"/"Ollama"/"ollama.exe",pathlib.Path(os.environ.get("ProgramFiles",r"C:\Program Files"))/"Ollama"/"ollama.exe"]:
   if p.is_file():return p
  x=shutil.which("ollama");return pathlib.Path(x) if x else None
-def psq(s):return str(s).replace("'","''")
+def psq(s): return "'" + str(s).replace("'", "''") + "'"
 def link(path,exe,gui):
  path.parent.mkdir(parents=True,exist_ok=True)
- cmd="$w=New-Object -ComObject WScript.Shell;$s=$w.CreateShortcut('{}');$s.TargetPath='{}';$s.Arguments='"{}"';$s.WorkingDirectory='{}';$s.Save()".format(psq(path),psq(exe),psq(gui),psq(ROOT))
- subprocess.run(["powershell","-NoProfile","-Command",cmd],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+ script="$w=New-Object -ComObject WScript.Shell;$s=$w.CreateShortcut({});$s.TargetPath={};$s.Arguments={};$s.WorkingDirectory={};$s.Save()".format(psq(path),psq(exe),psq('"'+str(gui)+'"'),psq(ROOT))
+ encoded=base64.b64encode(script.encode("utf-16le")).decode("ascii")
+ subprocess.run(["powershell","-NoProfile","-EncodedCommand",encoded],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 def wait_api(exe):
  try:subprocess.Popen([str(exe),"serve"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
  except:pass
