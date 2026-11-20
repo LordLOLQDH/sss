@@ -9,7 +9,7 @@ from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import *
 from sss_core import APP_NAME,VERSION,DATA_DIR,QUARANTINE,inspect,iter_files,sha256
 from sss_ai import status as ai_status,explain as ai_explain,DEFAULT_MODEL
-from sss_updater import check as update_check,download_and_launch
+from sss_updater import check as update_check,install_update
 CONFIG=DATA_DIR/"settings.json"
 DEFAULT={"scan_dirs":[str(Path.home()/"Downloads"),str(Path.home()/"Desktop")],"excluded_dirs":[],"interval_minutes":10,"max_file_mb":200,"ai_enabled":True,"ai_model":DEFAULT_MODEL}
 STYLE="""QWidget{background:#f4f7f6;color:#172b22;font-family:'Segoe UI';font-size:13px} QFrame#card{background:white;border:1px solid #dfe8e2;border-radius:14px} QPushButton{background:white;border:1px solid #dfe8e2;border-radius:9px;padding:9px 13px;font-weight:600} QPushButton:hover{background:#edf5ef} QPushButton#primary{background:#159653;color:white;border-color:#159653} QTableWidget{background:white;border:1px solid #dfe8e2;border-radius:12px;selection-background-color:#e7f4eb} QHeaderView::section{background:#f8faf9;border:0;padding:10px;color:#718078;font-weight:700}"""
@@ -131,8 +131,8 @@ class Main(QMainWindow):
   if not result.get("update_available"):QMessageBox.information(self,"SSS Update",f"SSS ist aktuell. Installierte Version: {VERSION}");return
   latest=result.get("latest","?")
   if QMessageBox.question(self,"Update verfügbar",f"Version {latest} ist verfügbar.\n\nJetzt herunterladen und installieren?\n\n{result.get('notes','')}")!=QMessageBox.Yes:return
-  download=download_and_launch(result.get("installer"),result.get("checksum"))
-  if download.get("ok"):QMessageBox.information(self,"Updater","Installer gestartet. SSS wird geschlossen.");self.close()
+  download=install_update()
+  if download.get("ok"):QMessageBox.information(self,"Updater","Update erfolgreich. Bitte SSS neu starten.");self.close()
   else:QMessageBox.critical(self,"Update",download.get("error","Update fehlgeschlagen"))
  def ai_setup(self):
   d=QDialog(self);d.setWindowTitle("SSS · Lokale KI einrichten");d.resize(540,420);layout=QVBoxLayout(d)
