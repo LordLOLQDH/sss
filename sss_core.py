@@ -1,9 +1,12 @@
 """SSS 2.0 local file inspection engine. Defensive, non-executing checks."""
 from pathlib import Path
 from datetime import datetime
-import hashlib, os, re, shutil, subprocess, time
+import hashlib, os, re, shutil, subprocess, time, json
 APP_NAME="SchoolServer Security"
-VERSION="2.0.0"
+try:
+ VERSION=json.loads((Path(__file__).resolve().parent/"version.json").read_text(encoding="utf-8")).get("version","2.0.0")
+except Exception:
+ VERSION="2.0.0"
 DATA_DIR=Path(os.environ.get("LOCALAPPDATA",str(Path.home())))/"SchoolServer Security"
 QUARANTINE=DATA_DIR/"Quarantine"
 SCRIPT_EXT={".ps1",".bat",".cmd",".vbs",".js",".py",".hta",".scr",".jse",".vbe"}
