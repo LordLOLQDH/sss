@@ -1,36 +1,53 @@
-"""SSS release updater: only downloads checksum-verified official GitHub installers."""
-import json,urllib.request,hashlib,os,subprocess,platform,tempfile
-API="https://api.github.com/repos/LordLOLQDH/sss/releases/latest"
-def latest_release():
- req=urllib.request.Request(API,headers={"Accept":"application/vnd.github+json","User-Agent":"SchoolServer-Security-Updater"})
- with urllib.request.urlopen(req,timeout=15) as r:return json.loads(r.read())
+"""Repository-based updater for SchoolServer Security."""
+from __future__ import annotations
+import json, urllib.request, zipfile, tempfile, os, shutil, pathlib
+REPO="LordLOLQDH/sss"
+RAW="https://raw.githubusercontent.com/"+REPO+"/main/"
+ZIP_URL="https://github.com/"+REPO+"/archive/refs/heads/main.zip"
+ROOT=pathlib.Path(__file__).resolve().parent
+FILES=("sss_gui.py","sss_core.py","sss_ai.py","sss_updater.py","sss_scanner.py","version.json","requirements.txt")
+def fetch(url,timeout=30):
+ req=urllib.request.Request(url,headers={"User-Agent":"SSS-Updater"})
+ with urllib.request.urlopen(req,timeout=timeout) as r:return r.read()
 def vt(v):
- try:return tuple(int(x) for x in str(v).lstrip("v").split("."))
+ try:return tuple(int(x) for x in str(v).strip().lstrip("v").split("."))
  except:return (0,)
 def check(current):
  try:
-  rel=latest_release();tag=rel.get("tag_name","").lstrip("v");assets=rel.get("assets",[])
-  exe=next((a for a in assets if a.get("name","").startswith("SSS-Setup-") and a.get("name","").endswith(".exe")),None)
-  checksum=next((a for a in assets if a.get("name","").endswith(".exe.sha256")),None)
-  return {"ok":True,"current":current,"latest":tag,"update_available":vt(tag)>vt(current),"installer":exe,"checksum":checksum,"url":rel.get("html_url",""),"notes":rel.get("body","")}
+  meta=json.loads(fetch(RAW+"version.json",15).decode("utf-8"))
+  latest=str(meta.get("version","0.0.0"))
+  return {"ok":True,"current":str(current),"latest":latest,"update_available":vt(latest)>vt(current),"notes":meta.get("notes",""),"url":"https://github.com/"+REPO}
  except Exception as e:return {"ok":False,"error":str(e)}
-def get(url):
- req=urllib.request.Request(url,headers={"User-Agent":"SSS-Updater"})
- with urllib.request.urlopen(req,timeout=60) as r:return r.read()
-def download_and_launch(asset,checksum_asset):
- if platform.system()!="Windows":return {"ok":False,"error":"Windows installer updater only."}
- if not asset or not checksum_asset:return {"ok":False,"error":"Release installer or SHA-256 checksum asset missing. Update blocked."}
- name=asset.get("name","")
- if not name.startswith("SSS-Setup-") or not name.endswith(".exe"):return {"ok":False,"error":"Unexpected installer filename blocked."}
+def install_update():
+ """Fetch source ZIP, path-check it, then replace app code with rollback on failure."""
+ temp=pathlib.Path(tempfile.mkdtemp(prefix="sss_update_"));backup=temp/"backup";stage=temp/"stage"
  try:
-  checksum_text=get(checksum_asset["browser_download_url"]).decode("ascii","ignore")
-  expected=next((line.split()[0].lower() for line in checksum_text.splitlines() if line.split() and len(line.split()[0])==64 and all(c in "0123456789abcdefABCDEF" for c in line.split()[0])),None)
-  if not expected:return {"ok":False,"error":"Checksum file has invalid format."}
-  binary=get(asset["browser_download_url"])
-  actual=hashlib.sha256(binary).hexdigest()
-  if actual.lower()!=expected:return {"ok":False,"error":"Installer SHA-256 mismatch. Download rejected."}
-  target=os.path.join(tempfile.gettempdir(),name)
-  with open(target,"wb") as f:f.write(binary)
-  if os.path.getsize(target)<1_000_000:return {"ok":False,"error":"Installer size sanity check failed."}
-  subprocess.Popen([target],shell=False);return {"ok":True,"path":target}
+  zpath=temp/"source.zip";zpath.write_bytes(fetch(ZIP_URL,90));stage.mkdir()
+  with zipfile.ZipFile(zpath) as z:
+   root=stage.resolve()
+   for info in z.infolist():
+    target=(root/info.filename).resolve()
+    if not target.is_relative_to(root):raise RuntimeError("Unsafe archive path blocked.")
+   z.extractall(stage)
+  folders=[p for p in stage.iterdir() if p.is_dir()];source=folders[0] if folders else stage
+  missing=[n for n in FILES if not (source/n).is_file()]
+  if missing:raise RuntimeError("Archive missing: "+", ".join(missing))
+  meta=json.loads((source/"version.json").read_text(encoding="utf-8"));latest=str(meta.get("version",""))
+  if not latest or vt(latest)<vt("2.0.0"):raise RuntimeError("Invalid version metadata.")
+  backup.mkdir();done=[]
+  try:
+   for name in FILES:
+    dst=ROOT/name
+    if dst.exists():shutil.copy2(dst,backup/name)
+    temp_file=ROOT/(name+".sss-update-tmp");shutil.copy2(source/name,temp_file);os.replace(temp_file,dst);done.append(name)
+  except Exception:
+   for name in reversed(done):
+    old=backup/name
+    if old.exists():shutil.copy2(old,ROOT/name)
+    else:(ROOT/name).unlink(missing_ok=True)
+   raise
+  return {"ok":True,"version":latest,"files":done}
  except Exception as e:return {"ok":False,"error":str(e)}
+ finally:shutil.rmtree(temp,ignore_errors=True)
+def download_and_launch(asset=None,checksum_asset=None):
+ return install_update()
