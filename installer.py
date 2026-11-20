@@ -24,13 +24,12 @@ def link(path,exe,gui):
  cmd="$w=New-Object -ComObject WScript.Shell;$s=$w.CreateShortcut('{}');$s.TargetPath='{}';$s.Arguments='"{}"';$s.WorkingDirectory='{}';$s.Save()".format(psq(path),psq(exe),psq(gui),psq(ROOT))
  subprocess.run(["powershell","-NoProfile","-Command",cmd],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 def wait_api(exe):
+ try:subprocess.Popen([str(exe),"serve"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+ except:pass
  for _ in range(40):
   try:
    with urllib.request.urlopen("http://127.0.0.1:11434/api/tags",timeout=2):return True
-  except Exception:
-   try:subprocess.Popen([str(exe),"serve"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-   except:pass
-   time.sleep(3)
+  except Exception:time.sleep(3)
  return False
 def main():
  if sys.platform!="win32":print("Windows only.");input("Enter");return 1
