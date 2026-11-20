@@ -1,5 +1,5 @@
 [Setup]
-AppId={{C91A0B16-3D25-4AC3-A3A1-SSS200000001}
+AppId={{C91A0B16-3D25-4AC3-A3A1-020000000001}
 AppName=SchoolServer Security
 AppVersion=2.0.0
 AppPublisher=Adam Gabriel Kraus
