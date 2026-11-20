@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """SSS Windows setup: installs SSS, Ollama, and a local AI model."""
-import os,sys,shutil,tempfile,urllib.request,zipfile,subprocess,pathlib,time
+import os,sys,shutil,tempfile,urllib.request,zipfile,subprocess,pathlib,time,base64
 REPO="https://github.com/LordLOLQDH/sss/archive/refs/heads/main.zip"
 OLLAMA="https://ollama.com/download/OllamaSetup.exe"
 MODEL="qwen2.5:3b"
