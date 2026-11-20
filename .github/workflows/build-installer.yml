@@ -19,12 +19,21 @@ jobs:
       - uses: jrsoftware/issuest@v1
         with:
           script: installer/sss.iss
+      - name: Generate installer SHA-256 checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash installer/dist/SSS-Setup-2.0.0.exe -Algorithm SHA256).Hash
+          "$hash  SSS-Setup-2.0.0.exe" | Out-File installer/dist/SSS-Setup-2.0.0.exe.sha256 -Encoding ascii
       - uses: actions/upload-artifact@v4
         with:
           name: SSS-Windows-Installer
-          path: installer/dist/SSS-Setup-2.0.0.exe
+          path: |
+            installer/dist/SSS-Setup-2.0.0.exe
+            installer/dist/SSS-Setup-2.0.0.exe.sha256
       - name: Publish tagged installer release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: installer/dist/SSS-Setup-2.0.0.exe
+          files: |
+            installer/dist/SSS-Setup-2.0.0.exe
+            installer/dist/SSS-Setup-2.0.0.exe.sha256
