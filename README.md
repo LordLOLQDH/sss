@@ -1,56 +1,43 @@
-# SchoolServer Security (SSS)
+# SchoolServer Security (SSS) 2.0
 
-**Schulserver-Sicherheit. Entwickelt von Adam Gabriel Kraus.**
+**Local-first file security assistant**  
+Developed by Adam Gabriel Kraus.
 
-SchoolServer Security ist ein Entwicklungsprojekt für die lokale Datei-Sicherheitsprüfung.
+SSS 2.0 replaces the previous Tkinter prototype with a single PySide6 desktop GUI and a separate non-executing file inspection engine.
 
-🌐 **Projektwebsite:** https://lordlolqdh.github.io/sss/  
-📦 **Quellcode:** https://github.com/LordLOLQDH/sss
+## Current 2.0 scope
+- New desktop UI (single supported GUI)
+- Scheduled recurring local scan with countdown
+- Configurable scan folders and exclusions
+- SHA-256 file hashes
+- Optional ClamAV detection if clamscan is installed
+- Basic defensive script-pattern checks
+- Explicit user-confirmed reversible quarantine move for flagged files
+- Optional local AI explanations via Ollama; no external AI calls
 
-## Aktueller Desktop-Client
+## Local AI setup
+1. Install Ollama from its official website.
+2. Start Ollama locally.
+3. Pull the configured model, for example `ollama pull qwen2.5:3b`.
+4. Open SSS and select a scan result, then choose **KI-Erklärung**.
 
-Version 0.1.0 enthält:
-- Modernes Desktop-GUI auf Basis von PySide6 (sss_gui.py)
-- Manuelle, lesende Scans konfigurierter Ordner
-- SHA-256-Hashes
-- EICAR-Testsignatur und einfache Textmuster
-- Optionale ClamAV-Anbindung (wenn clamscan installiert ist)
-- Ausschlussordner, Dateigrößenlimit und Scanoptionen
-- JSON-Berichtexport
-- Logo im Desktopfenster
+AI status is shown as local online/offline. AI output is advisory and cannot override the scanner findings. The scanner does not execute analyzed files.
 
-Die GUI greift auf die vorhandenen Scanfunktionen aus sss_scanner.py zurück. Die alte Tkinter-Oberfläche ist dort weiterhin vorhanden, wird aber durch die Startskripte nicht mehr als Standard gestartet.
+## Developer run
+Python 3.10+ is recommended.
 
+```powershell
+py -3 -m pip install -r requirements.txt
+py -3 sss_gui.py
+```
 
-## Start
+## Build standalone executable
+Install PyInstaller and run:
+```powershell
+py -3 -m pip install -r requirements.txt pyinstaller
+py -3 -m PyInstaller --noconfirm --clean --windowed --onefile --name SSS sss_gui.py
+```
+The standalone EXE does not include the local AI model. Ollama and a model must be installed separately.
 
-Voraussetzung: Python 3.10 oder neuer. Beim ersten Start wird PySide6 anhand von requirements.txt installiert (Internetverbindung erforderlich).
-
-- Windows: start_sss.bat
-- Linux/macOS: start_sss.sh
-
-ClamAV ist optional und muss separat installiert sein, damit clamscan verfügbar ist.
-
-
-## Editionen und Plattform-Konzept
-
-Standard und Professional sind derzeit Konfigurationsprofile im Control Center. Sie schalten noch keine unterschiedlichen Scanner-Funktionen frei. Backend, Cloud-Synchronisierung, zentrale Liveüberwachung, Multi-Serververwaltung, automatische Updates und echte serverseitige Rollen sind noch nicht implementiert.
-
-
-## Dokumentation
-
-- [Installations- und Nutzungshinweise](docs/INSTALLATION.md)
-- [Programm-Anleitung](docs/PROGRAMM.md)
-- [Updater-Status](docs/UPDATER.md)
-- [Sicherheits- und Datenschutzkonzept](docs/SECURITY.md)
-
-
-## Entwicklungsstatus
-
-**Prototyp 0.1.0 – nicht produktionsbereit.** Scans sind lesend. Textmuster können Fehlalarme auslösen und Malware übersehen. Der Scanner ist kein Ersatz für einen professionellen Virenschutz. Bitte nicht auf einem echten Schulserver einsetzen, bevor die zuständige IT den Code geprüft und den Einsatz freigegeben hat.
-
-
----
-
-**SchoolServer Security (SSS)**  
-*by Adam Gabriel Kraus*
+## Safety limitations
+SSS 2.0 is a development project and is **not a certified antivirus/endpoint protection product**. It can miss malware and generate false positives. Quarantine moves are user-confirmed. Do not use it as your sole security control on school or production systems. Deployment on school computers requires approval from authorized IT staff.
