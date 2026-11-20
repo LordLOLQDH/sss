@@ -88,9 +88,21 @@ def gui():
                 py=venv/"Scripts"/"python.exe"
                 if not py.is_file():raise RuntimeError("Virtuelle Python-Umgebung konnte nicht angelegt werden.")
                 self.say("4/6 · GUI- und Programm-Pakete werden still im Hintergrund installiert…")
-                run_hidden([str(py),"-m","pip","install","--upgrade","pip"],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-                requirements=APP/"requirements.txt"
-                if requirements.exists():run_hidden([str(py),"-m","pip","install","-r",str(requirements)],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+                piplog=tmp/"pip-install.log"
+                # Bootstrap pip inside the venv without invoking the fragile pip.exe launcher.
+                with piplog.open("w",encoding="utf-8") as log:
+                    ensure=run_hidden([str(py),"-m","ensurepip","--upgrade"],stdout=log,stderr=subprocess.STDOUT)
+                    if ensure.returncode:
+                        raise RuntimeError("pip konnte in der Python-Umgebung nicht eingerichtet werden.\\n"+piplog.read_text(encoding="utf-8",errors="replace")[-3500:])
+                    requirements=APP/"requirements.txt"
+                    if requirements.exists():
+                        p=run_hidden([str(py),"-m","pip","install","--disable-pip-version-check","-r",str(requirements)],stdout=log,stderr=subprocess.STDOUT)
+                        if p.returncode:
+                            raise RuntimeError("Paketinstallation fehlgeschlagen (Code "+str(p.returncode)+").\\nDetails:\\n"+piplog.read_text(encoding="utf-8",errors="replace")[-3500:])
+                # Verify the required GUI import explicitly before continuing.
+                check=run_hidden([str(py),"-c","import PySide6"],capture_output=True,text=True)
+                if check.returncode:
+                    raise RuntimeError("PySide6 fehlt nach der Paketinstallation.\\n"+(check.stderr or check.stdout))
                 self.pct(48);self.say("5/6 · Ollama wird geprüft / installiert…")
                 ollama=self.ollama_path()
                 if not ollama:
