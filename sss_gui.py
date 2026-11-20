@@ -102,7 +102,7 @@ class Main(QMainWindow):
   if not result.get("update_available"):QMessageBox.information(self,"SSS Update",f"SSS ist aktuell. Installierte Version: {VERSION}");return
   latest=result.get("latest","?")
   if QMessageBox.question(self,"Update verfügbar",f"Version {latest} ist verfügbar.\n\nJetzt herunterladen und installieren?\n\n{result.get('notes','')}")!=QMessageBox.Yes:return
-  download=download_and_launch(result.get("installer"))
+  download=download_and_launch(result.get("installer"),result.get("checksum"))
   if download.get("ok"):QMessageBox.information(self,"Updater","Installer gestartet. SSS wird geschlossen.");self.close()
   else:QMessageBox.critical(self,"Update",download.get("error","Update fehlgeschlagen"))
  def ai_setup(self):
