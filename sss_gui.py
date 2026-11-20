@@ -27,6 +27,9 @@ class AIWorker(QObject):
  done=Signal(dict)
  def __init__(self,r,m):super().__init__();self.r=r;self.m=m
  def run(self):self.done.emit(ai_explain(self.r,self.m))
+class StatusWorker(QObject):
+ done=Signal(dict)
+ def run(self):self.done.emit(ai_status())
 class Main(QMainWindow):
  def __init__(self):
   super().__init__();self.c=load_cfg();self.rows=[];self.busy=False;self.ai_online=False;self.next=time.monotonic()+self.c["interval_minutes"]*60
@@ -79,15 +82,18 @@ class Main(QMainWindow):
  def explain(self):
   r=self.selected()
   if not r:QMessageBox.information(self,"Lokale KI","Datei in der Tabelle auswählen.");return
+  if not self.c.get("ai_enabled",True):QMessageBox.information(self,"Lokale KI","KI-Auswertung ist in Einstellungen deaktiviert.");return
   self.ai_btn.setEnabled(False);self.ai_btn.setText("KI analysiert…");self.ai_thread=QThread(self);self.ai_worker=AIWorker(r,self.c.get("ai_model",DEFAULT_MODEL));self.ai_worker.moveToThread(self.ai_thread);self.ai_thread.started.connect(self.ai_worker.run);self.ai_worker.done.connect(self.ai_result);self.ai_worker.done.connect(self.ai_thread.quit);self.ai_worker.done.connect(self.ai_worker.deleteLater);self.ai_thread.finished.connect(self.ai_thread.deleteLater);self.ai_thread.start()
  def ai_result(self,r):
   self.ai_btn.setEnabled(True);self.ai_btn.setText("KI-Erklärung");dlg=QDialog(self);dlg.setWindowTitle("Lokale KI-Erklärung");dlg.resize(650,480);v=QVBoxLayout(dlg);out=QTextEdit();out.setReadOnly(True);out.setPlainText(r.get("text") if r.get("ok") else r.get("error","Keine KI-Antwort"));v.addWidget(out);close=QPushButton("Schließen");close.clicked.connect(dlg.accept);v.addWidget(close);dlg.exec()
  def check_ai(self):
-  def probe():
-   result=ai_status();self.ai_online=result.get("online",False)
-   QTimer.singleShot(0,lambda:self.ai_label.setText("LOCAL KI · "+("ONLINE" if self.ai_online else "OFFLINE")))
-   QTimer.singleShot(0,lambda:self.ai_card.value.setText("Online" if self.ai_online else "Offline"))
-  threading.Thread(target=probe,daemon=True).start()
+  self.status_thread=QThread(self);self.status_worker=StatusWorker();self.status_worker.moveToThread(self.status_thread)
+  self.status_thread.started.connect(self.status_worker.run);self.status_worker.done.connect(self.ai_status_result)
+  self.status_worker.done.connect(self.status_thread.quit);self.status_worker.done.connect(self.status_worker.deleteLater);self.status_thread.finished.connect(self.status_thread.deleteLater);self.status_thread.start()
+ def ai_status_result(self,result):
+  self.ai_online=result.get("online",False)
+  self.ai_label.setText("LOCAL KI · "+("ONLINE" if self.ai_online else "OFFLINE"))
+  self.ai_card.value.setText("Online" if self.ai_online else "Offline")
  def settings(self):
   d=QDialog(self);d.setWindowTitle("SSS Einstellungen");d.resize(620,460);layout=QVBoxLayout(d);form=QFormLayout()
   dirs=QPlainTextEdit();dirs.setPlainText("\n".join(self.c["scan_dirs"]));exclude=QPlainTextEdit();exclude.setMaximumHeight(90);exclude.setPlainText("\n".join(self.c.get("excluded_dirs",[])))
