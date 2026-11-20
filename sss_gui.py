@@ -111,7 +111,7 @@ class Main(QMainWindow):
   guide=QLabel("SSS verwendet Ollama und ein lokales Modell. Die KI-Anfragen bleiben auf diesem Gerät.\n\n1. Ollama für Windows herunterladen und installieren.\n2. Ollama starten (läuft im Hintergrund).\n3. Terminal/PowerShell öffnen und diesen Befehl ausführen:\n\nollama pull qwen2.5:3b\n\n4. Nach dem Download in SSS auf „KI-Status prüfen“ bzw. das Programm neu öffnen.\n\nHinweis: Das Modell benötigt mehrere GB Speicherplatz und RAM. KI-Ausgaben sind nur unterstützende Einschätzungen.");guide.setWordWrap(True);guide.setStyleSheet("font-size:14px;line-height:1.6");layout.addWidget(guide)
   link=QPushButton("Offizielle Ollama-Downloadseite öffnen");link.setObjectName("primary");link.clicked.connect(lambda:QDesktopServices.openUrl(QUrl("https://ollama.com/download/windows")));layout.addWidget(link)
   cmds=QLabel("ollama pull qwen2.5:3b");cmds.setTextInteractionFlags(Qt.TextSelectableByMouse);cmds.setStyleSheet("background:white;border:1px solid #dfe8e2;border-radius:8px;padding:10px;font-family:Consolas");layout.addWidget(cmds)
-  close=QPushButton("Schließen");close.clicked.connect(d.accept);layout.addWidget(close);d.exec()
+  actions=QHBoxLayout();refresh=QPushButton("KI-Status erneut prüfen");refresh.clicked.connect(lambda:(d.accept(),self.check_ai()));close=QPushButton("Schließen");close.clicked.connect(d.accept);actions.addWidget(refresh);actions.addWidget(close);layout.addLayout(actions);d.exec()
  def check_ai(self):
   self.status_thread=QThread(self);self.status_worker=StatusWorker();self.status_worker.moveToThread(self.status_thread)
   self.status_thread.started.connect(self.status_worker.run);self.status_worker.done.connect(self.ai_status_result)
