@@ -18,7 +18,7 @@ Die Anwendung installiert sich beim ersten Start in das Benutzerprofil unter `%L
 ## Erster Start
 
 1. Python 3.11 oder neuer installieren.
-2. Repository-ZIP herunterladen und entpacken.
+2. [Python-App-Paket herunterladen](https://github.com/LordLOLQDH/sss/releases/download/latest/SSS-Windows-Python.zip) und entpacken.
 3. Im SSS-Ordner ein Terminal öffnen.
 4. Abhängigkeiten installieren:
 
