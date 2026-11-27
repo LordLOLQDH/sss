@@ -1,6 +1,6 @@
 {
   "name": "SchoolServer Security",
-  "version": "2.4.7",
+  "version": "2.4.8",
   "channel": "stable",
-  "notes": "Mehrfachauswahl: Mehrere auffällige Dateien können gemeinsam in Quarantäne verschoben und mehrere Quarantänedateien gemeinsam wiederhergestellt werden. Jede Datei wird einzeln geprüft; vorhandene Dateien werden nicht überschrieben."
+  "notes": "Update 2.4.8: Der In-App-Updater ersetzt jetzt den gesamten Installationsordner durch die neue Programmversion. Veraltete Programmdateien bleiben nicht zurück; Einstellungen, Logs, Quarantäne und Freigaben außerhalb des Installationsordners bleiben erhalten. Bei einem Fehler wird die vorherige Installation wiederhergestellt."
 }
