@@ -236,8 +236,9 @@ class Main(QMainWindow):
  def remove_scan_path(self,editor):
   text=editor.toPlainText().splitlines()
   if not text:return
-  selected=editor.textCursor().selectedText()
-  if selected and selected in text:text.remove(selected)
+  cursor=editor.textCursor()
+  selected_line=cursor.block().text().strip()
+  if selected_line and selected_line in text:text.remove(selected_line)
   else:text.pop(-1)
   editor.setPlainText("\n".join(text))
 if __name__=="__main__":
