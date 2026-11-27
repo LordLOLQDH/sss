@@ -109,7 +109,6 @@ class AIPage(QWizardPage):
         layout.addWidget(self.status)
         layout.addStretch()
         self.connected = False
-        self.registerField("aiConnected", self, "connected")
     def test_connection(self):
         result = ai_status()
         if not result.get("online"):
