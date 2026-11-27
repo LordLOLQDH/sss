@@ -4,7 +4,7 @@ import sys,json,time,threading,shutil
 from pathlib import Path
 from datetime import datetime
 from PySide6.QtCore import Qt,QObject,Signal,QThread,QTimer
-from PySide6.QtGui import QFont, QDesktopServices
+from PySide6.QtGui import QFont, QDesktopServices, QPixmap
 from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import *
 from sss_core import APP_NAME,VERSION,DATA_DIR,QUARANTINE,inspect,iter_files,sha256
@@ -42,7 +42,11 @@ class Main(QMainWindow):
   self.build();self.tick_timer=QTimer(self);self.tick_timer.timeout.connect(self.tick);self.tick_timer.start(1000);QTimer.singleShot(1000,self.check_ai);QTimer.singleShot(2500,self.scan)
  def build(self):
   central=QWidget();self.setCentralWidget(central);l=QVBoxLayout(central);l.setContentsMargins(26,22,26,22);l.setSpacing(15)
-  header=QHBoxLayout();titles=QVBoxLayout();titles.setSpacing(1);h=QLabel("SchoolServer Security");h.setStyleSheet("font-size:22px;font-weight:850");sub=QLabel(f"SSS 2.0 · Local Security Engine · {VERSION}");sub.setStyleSheet("color:#718078");titles.addWidget(h);titles.addWidget(sub);header.addLayout(titles);header.addStretch();self.ai_label=QLabel("LOCAL KI · wird geprüft");self.ai_label.setStyleSheet("font-weight:750");header.addWidget(self.ai_label);self.ai_setup_btn=QPushButton("KI einrichten");self.ai_setup_btn.clicked.connect(self.ai_setup);header.addWidget(self.ai_setup_btn);l.addLayout(header)
+  header=QHBoxLayout();logo=QLabel();logo_path=Path(__file__).resolve().parent/"assets"/"Sicherheits-Schild mit Servern und Schloss.png"
+  if logo_path.exists():
+   pix=QPixmap(str(logo_path))
+   if not pix.isNull():logo.setPixmap(pix.scaled(54,54,Qt.KeepAspectRatio,Qt.SmoothTransformation))
+  header.addWidget(logo);titles=QVBoxLayout();titles.setSpacing(1);h=QLabel("SchoolServer Security");h.setStyleSheet("font-size:22px;font-weight:850");sub=QLabel(f"SSS 2.0 · Local Security Engine · {VERSION}");sub.setStyleSheet("color:#718078");titles.addWidget(h);titles.addWidget(sub);header.addLayout(titles);header.addStretch();self.ai_label=QLabel("LOCAL KI · wird geprüft");self.ai_label.setStyleSheet("font-weight:750");header.addWidget(self.ai_label);self.ai_setup_btn=QPushButton("KI einrichten");self.ai_setup_btn.clicked.connect(self.ai_setup);header.addWidget(self.ai_setup_btn);l.addLayout(header)
   intro=QHBoxLayout();txt=QVBoxLayout();headline=QLabel("Sicherheitsübersicht");headline.setStyleSheet("font-size:27px;font-weight:850");desc=QLabel("Automatische lokale Prüfungen. Dateiaktionen erfolgen nachvollziehbar und mit Bestätigung.");desc.setStyleSheet("color:#718078");txt.addWidget(headline);txt.addWidget(desc);intro.addLayout(txt);intro.addStretch();self.scan_btn=QPushButton("Jetzt prüfen");self.scan_btn.setObjectName("primary");self.scan_btn.clicked.connect(self.scan);intro.addWidget(self.scan_btn);self.settings_btn=QPushButton("Einstellungen");self.settings_btn.clicked.connect(self.settings);intro.addWidget(self.settings_btn);self.update_btn=QPushButton("Updates");self.update_btn.clicked.connect(self.check_updates);intro.addWidget(self.update_btn);l.addLayout(intro)
   cards=QHBoxLayout();self.files=self.card("Geprüfte Dateien","—");self.flags=self.card("Auffälligkeiten","—");self.countdown=self.card("Nächste Prüfung","—");self.ai_card=self.card("Lokale KI","Status");[cards.addWidget(x) for x in [self.files,self.flags,self.countdown,self.ai_card]];l.addLayout(cards)
   bar=QHBoxLayout();bar.addWidget(QLabel("Prüfergebnisse"));bar.addStretch();self.status=QLabel("Bereit");self.status.setStyleSheet("color:#718078");bar.addWidget(self.status);self.quarantine_btn=QPushButton("In Quarantäne verschieben");self.quarantine_btn.clicked.connect(self.quarantine);bar.addWidget(self.quarantine_btn);self.manage_quarantine_btn=QPushButton("Quarantäne verwalten");self.manage_quarantine_btn.clicked.connect(self.manage_quarantine);bar.addWidget(self.manage_quarantine_btn);self.ai_btn=QPushButton("KI-Erklärung");self.ai_btn.clicked.connect(self.explain);bar.addWidget(self.ai_btn);l.addLayout(bar)
