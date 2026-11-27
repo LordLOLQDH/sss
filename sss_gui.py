@@ -61,7 +61,7 @@ def set_autostart(enabled):
   keypath=r"Software\Microsoft\Windows\CurrentVersion\Run"
   with winreg.OpenKey(winreg.HKEY_CURRENT_USER,keypath,0,winreg.KEY_SET_VALUE) as key:
    if enabled:
-    executable='"'+str(Path(sys.executable).resolve())+'"'
+    executable='"'+str(Path(sys.executable).resolve())+'" '+'"'+str(Path(__file__).resolve())+'"'
     winreg.SetValueEx(key,"SchoolServer Security",0,winreg.REG_SZ,executable)
    else:
     try:winreg.DeleteValue(key,"SchoolServer Security")
@@ -74,7 +74,7 @@ class Main(QMainWindow):
   self.setWindowTitle(f"{APP_NAME} 2.0");self.resize(1180,770);
   logo_icon=Path(__file__).resolve().parent/"assets"/"Sicherheits-Schild mit Servern und Schloss.png"
   if logo_icon.exists():self.setWindowIcon(QIcon(str(logo_icon)))
-  logger.info("Programmstart Version %s",VERSION)self.setMinimumSize(900,620);self.setStyleSheet(STYLE)
+  logger.info("Programmstart Version %s",VERSION);self.setMinimumSize(900,620);self.setStyleSheet(STYLE)
   self.build();self.tick_timer=QTimer(self);self.tick_timer.timeout.connect(self.tick);self.tick_timer.start(1000);QTimer.singleShot(1000,self.check_ai);QTimer.singleShot(2500,self.scan)
  def build(self):
   central=QWidget();self.setCentralWidget(central);l=QVBoxLayout(central);l.setContentsMargins(26,22,26,22);l.setSpacing(15)
@@ -174,10 +174,8 @@ class Main(QMainWindow):
    QMessageBox.warning(self,"Update-Prüfung",result.get("error","Updateprüfung fehlgeschlagen"));return
   if not result.get("update_available"):
    QMessageBox.information(self,"SSS Update",f"SSS ist aktuell. Installierte Version: {VERSION}");return
-  if not result.get("asset_url"):
-   QMessageBox.warning(self,"Update",f"Version {result.get('latest')} ist angekündigt, aber das Windows-ZIP wurde nicht gefunden.\n\n{result.get('release_url','')}");return
   latest=result.get("latest","?")
-  answer=QMessageBox.question(self,"Update verfügbar",f"SSS {latest} ist verfügbar (installiert: {VERSION}).\n\n{result.get('notes','')}\n\nJetzt herunterladen und nach dem Schließen installieren?")
+  answer=QMessageBox.question(self,"Update verfügbar",f"SSS {latest} ist verfügbar (installiert: {VERSION}).\n\n{result.get('notes','')}\n\nQuellcode-Update herunterladen und nach dem Schließen installieren?")
   if answer!=QMessageBox.Yes:return
   download=install_update()
   if download.get("ok"):
@@ -202,7 +200,7 @@ class Main(QMainWindow):
    self.ai_setup_status.setStyleSheet("color:#a45b18;font-weight:700");return
   models=result.get("models",[])
   model_name=self.c.get("ai_model",DEFAULT_MODEL)
-  if any(model_name in name for name in models):
+  if model_name in models:
    self.ai_setup_status.setText("Verbunden. Modell "+model_name+" ist installiert.")
    self.ai_setup_status.setStyleSheet("color:#16884b;font-weight:750")
   else:
@@ -291,6 +289,7 @@ if __name__=="__main__":
   if not run_first_setup():sys.exit(0)
  w=Main();w.show()
  cfg=load_cfg()
+ if cfg.get("autostart",True) and not autostart_enabled():set_autostart(True)
  if cfg.get("seen_version")!=VERSION:
   try:
    meta=json.loads((Path(__file__).resolve().parent/"version.json").read_text(encoding="utf-8"))
