@@ -17,7 +17,7 @@ STARTUP_DIR=Path(os.environ.get("APPDATA",str(Path.home()))) / "Microsoft" / "Wi
 PROGRAMS_DIR=Path(os.environ.get("APPDATA",str(Path.home()))) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
 DATA_DIR=Path(os.environ.get("LOCALAPPDATA",str(Path.home())))/"SchoolServer Security"
 QUARANTINE=DATA_DIR/"Quarantine"
-VERSION="2.4.8"
+VERSION="2.4.9"
 DEFAULT_MODEL="qwen2.5:3b"
 SCRIPT_EXT={".ps1",".bat",".cmd",".vbs",".js",".py",".hta",".scr",".jse",".vbe"}
 HASH_EXT=SCRIPT_EXT|{".exe",".dll",".sys",".com",".msi"}
@@ -464,18 +464,33 @@ class Main(QMainWindow):
     try:
      if not original.is_absolute():raise RuntimeError("Ursprungspfad fehlt in den Metadaten.")
      if not qfile.is_file():raise RuntimeError("Quarantänedatei nicht mehr vorhanden.")
+     if not original.parent.exists():original.parent.mkdir(parents=True,exist_ok=True)
+     expected=meta.get("sha256")
+     restore_to=original
      if original.exists():
-      conflicts+=1;raise RuntimeError("Am ursprünglichen Speicherort existiert bereits eine Datei. Sie wurde nicht überschrieben.")
-     original.parent.mkdir(parents=True,exist_ok=True)
-     shutil.move(str(qfile),str(original))
-     restored_hash=sha256(original)
-     if meta.get("sha256") and restored_hash!=meta["sha256"]:
-      shutil.move(str(original),str(qfile))
+      existing_hash=sha256(original)
+      if expected and existing_hash==expected:
+       qfile.unlink()
+       qfile.with_suffix(qfile.suffix+".json").unlink(missing_ok=True)
+       restored[str(original.resolve())]=existing_hash
+       success+=1
+       logger.info("BEREITS WIEDERHERGESTELLT; QUARANTÄNE-DUPLIKAT ENTFERNT | %s | SHA-256=%s",original,existing_hash)
+       continue
+      stem=original.stem;suffix=original.suffix;counter=1
+      while restore_to.exists():
+       restore_to=original.with_name(f"{stem} (wiederhergestellt {counter}){suffix}")
+       counter+=1
+      conflicts+=1
+      logger.warning("ZIELDATEI EXISTIERT; Wiederherstellung unter neuem Namen | %s -> %s",original,restore_to)
+     shutil.move(str(qfile),str(restore_to))
+     restored_hash=sha256(restore_to)
+     if expected and restored_hash!=expected:
+      shutil.move(str(restore_to),str(qfile))
       raise RuntimeError("SHA-256-Prüfung fehlgeschlagen. Datei blieb in Quarantäne.")
-     restored[str(original.resolve())]=restored_hash
+     restored[str(restore_to.resolve())]=restored_hash
      qfile.with_suffix(qfile.suffix+".json").unlink(missing_ok=True)
      success+=1
-     logger.info("DATEI WIEDERHERGESTELLT UND FREIGEGEBEN | %s | SHA-256=%s",original,restored_hash)
+     logger.info("DATEI WIEDERHERGESTELLT UND FREIGEGEBEN | %s | SHA-256=%s",restore_to,restored_hash)
     except Exception as exc:
      errors.append(f"{qfile.name}: {exc}");logger.warning("Wiederherstellung fehlgeschlagen | %s | %s",qfile,exc)
    try:save_restored_files(restored)
