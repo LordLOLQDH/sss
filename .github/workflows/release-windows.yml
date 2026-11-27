@@ -1,0 +1,45 @@
+name: Build SSS Windows app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build standalone desktop app
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --windowed --onefile --name SSS --add-data "assets;assets" --add-data "version.json;." --collect-all PySide6 sss_gui.py
+          if (!(Test-Path "dist/SSS.exe")) { throw "SSS.exe was not created." }
+          Compress-Archive -Path "dist/SSS.exe" -DestinationPath "dist/SSS-Windows.zip" -Force
+
+      - name: Publish latest Windows ZIP
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: SSS Windows · Latest build
+          target_commitish: main
+          prerelease: true
+          make_latest: false
+          overwrite_files: true
+          files: dist/SSS-Windows.zip
