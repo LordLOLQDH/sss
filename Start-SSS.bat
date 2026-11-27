@@ -4,25 +4,24 @@ title SchoolServer Security
 cd /d "%~dp0"
 where py >nul 2>nul
 if errorlevel 1 (
-  echo Python 3.10 oder neuer wurde nicht gefunden.
+  echo Python 3.10+ ist nicht installiert oder nicht im PATH.
   echo Installiere Python von https://www.python.org/downloads/windows/
-  echo Aktiviere beim Setup die Option "Add python.exe to PATH".
+  echo Beim Setup "Add Python to PATH" aktivieren.
   pause
   exit /b 1
 )
-if not exist ".venv\Scripts\python.exe" (
-  echo SSS wird einmalig vorbereitet. Das ist kein Installer.
+if not exist ".venv\\Scripts\\python.exe" (
+  echo Erstelle lokale Python-Umgebung ...
   py -3 -m venv .venv
   if errorlevel 1 goto failed
-  ".venv\Scripts\python.exe" -m pip install --disable-pip-version-check -r requirements.txt
-  if errorlevel 1 goto failed
 )
-".venv\Scripts\pythonw.exe" sss_gui.py
-if errorlevel 1 (
-  ".venv\Scripts\python.exe" sss_gui.py
-)
+echo Pruefe/installiere SSS-Abhaengigkeiten ...
+".venv\\Scripts\\python.exe" -m pip install --disable-pip-version-check -r requirements.txt
+if errorlevel 1 goto failed
+echo Starte SchoolServer Security ...
+start "" ".venv\\Scripts\\pythonw.exe" "%~dp0sss_gui.py"
 exit /b 0
 :failed
-echo SSS konnte nicht vorbereitet werden. Pruefe deine Internetverbindung und Python-Installation.
+echo SSS konnte nicht vorbereitet werden. Pruefe Python und deine Internetverbindung.
 pause
 exit /b 1
