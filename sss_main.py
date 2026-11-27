@@ -17,7 +17,7 @@ STARTUP_DIR=Path(os.environ.get("APPDATA",str(Path.home()))) / "Microsoft" / "Wi
 PROGRAMS_DIR=Path(os.environ.get("APPDATA",str(Path.home()))) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
 DATA_DIR=Path(os.environ.get("LOCALAPPDATA",str(Path.home())))/"SchoolServer Security"
 QUARANTINE=DATA_DIR/"Quarantine"
-VERSION="2.4.3"
+VERSION="2.4.4"
 DEFAULT_MODEL="qwen2.5:3b"
 SCRIPT_EXT={".ps1",".bat",".cmd",".vbs",".js",".py",".hta",".scr",".jse",".vbe"}
 RULES=[(r"powershell.{0,80}-(enc|encodedcommand)","PowerShell encoded command"),(r"\b(eval|exec)\s*\(","Dynamic code execution"),(r"\b(shell=True|os\.system\s*\()","Shell execution"),(r"frombase64string.{0,100}(invoke|exec|eval)","Decode-and-execute pattern")]
@@ -32,14 +32,10 @@ def inspect(path,max_mb=200):
   if not p.is_file():return {"path":str(p),"risk":"Info","reasons":["Not a regular file"]}
   size=p.stat().st_size
   if size>max_mb*1024*1024:return {"path":str(p),"risk":"Info","size":size,"reasons":[f"Übersprungen: größer als {max_mb} MB"]}
-  digest=sha256(p);reasons=[];clam="Nicht verfügbar"
-  clamscan=shutil.which("clamscan")
-  if clamscan:
-   try:
-    result=subprocess.run([clamscan,"--no-summary",str(p)],capture_output=True,text=True,timeout=40)
-    if "FOUND" in result.stdout+result.stderr:reasons.append("ClamAV-Erkennung")
-    clam="Erkennung" if reasons else "Sauber"
-   except Exception:clam="Scanfehler"
+  digest=sha256(p);reasons=[];clam="Schnellmodus (kein Einzelprozess)"
+  # ClamAV wurde zuvor pro Datei als eigener Prozess gestartet. Bei vielen
+  # Dateien verursachte das extreme Prozess- und Startkosten. Die schnelle
+  # Prüfung nutzt lokale Heuristiken; ein separater Vollscan bleibt möglich.
   if p.suffix.lower() in SCRIPT_EXT:reasons.append("Skript-/ausführbarer Dateityp: "+p.suffix)
   if p.suffix.lower() in {".py",".js",".ps1",".bat",".cmd",".vbs"} and size<2*1024*1024:
    content=p.read_text(encoding="utf-8",errors="ignore")
@@ -104,6 +100,7 @@ def update_check(current):
   return {"ok":False,"error":"GitHub nicht erreichbar: "+str(e)}
 CONFIG=DATA_DIR/"settings.json"
 LOGFILE=DATA_DIR/"sss.log"
+CACHEFILE=DATA_DIR/"scan_cache.json"
 DATA_DIR.mkdir(parents=True,exist_ok=True)
 logger=logging.getLogger("SSS")
 logger.setLevel(logging.INFO)
@@ -164,9 +161,21 @@ class ScanWorker(QObject):
  def __init__(self,c):super().__init__();self.c=c
  def run(self):
   rows=[]
+  try:cache=json.loads(CACHEFILE.read_text(encoding="utf-8")) if CACHEFILE.exists() else {}
+  except Exception:cache={}
+  next_cache={}
   rules={str(x).strip().lower() if str(x).strip().startswith(".") else "."+str(x).strip().lower() for x in self.c.get("quarantine_extensions",[]) if str(x).strip()}
   for p in iter_files(self.c["scan_dirs"],self.c.get("excluded_dirs",[])):
-   result=inspect(p,int(self.c["max_file_mb"]))
+   try:
+    st=p.stat();key=str(p.resolve());signature=[st.st_size,st.st_mtime_ns]
+    previous=cache.get(key,{})
+    if previous.get("signature")==signature and isinstance(previous.get("result"),dict):
+     result=dict(previous["result"]);result["elapsed"]=0.0;result["cached"]=True
+    else:
+     result=inspect(p,int(self.c["max_file_mb"]))
+     if "sha256" in result:next_cache[key]={"signature":signature,"result":result}
+   except OSError:
+    result=inspect(p,int(self.c["max_file_mb"]))
    if p.suffix.lower() in rules:
     result=quarantine_file(result,"Dateiendungs-Regel "+p.suffix.lower())
    elif self.c.get("ai_enabled",True) and self.c.get("ai_auto_quarantine",False) and result.get("risk") in ("Critical","Review"):
@@ -177,6 +186,11 @@ class ScanWorker(QObject):
     else:
      logger.info("KI-Bewertung | %s | %s",result.get("path"),json.dumps(assessment,ensure_ascii=False))
    rows.append(result)
+  try:
+   CACHEFILE.parent.mkdir(parents=True,exist_ok=True)
+   temp=CACHEFILE.with_suffix(".tmp");temp.write_text(json.dumps(next_cache,ensure_ascii=False),encoding="utf-8");temp.replace(CACHEFILE)
+  except Exception:logger.exception("Scan-Cache konnte nicht gespeichert werden")
+  logger.info("Schnellprüfung beendet | Dateien=%s | Cache-Treffer=%s",len(rows),sum(1 for x in rows if x.get("cached")))
   self.done.emit(rows)
 class AIWorker(QObject):
  done=Signal(dict)
