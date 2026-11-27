@@ -5,6 +5,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: sss-windows-build
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
@@ -32,7 +36,7 @@ jobs:
       - name: Build standalone desktop app
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --clean --windowed --onefile --name SSS --add-data "assets;assets" --add-data "version.json;." --collect-all PySide6 sss_gui.py
+          pyinstaller --noconfirm --clean --windowed --onefile --name SSS --add-data "assets;assets" --add-data "version.json;." sss_gui.py
           if (!(Test-Path "dist/SSS.exe")) { throw "SSS.exe was not created." }
           Compress-Archive -Path "dist/SSS.exe" -DestinationPath "dist/SSS-Windows.zip" -Force
 
