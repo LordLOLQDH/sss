@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SchoolServer Security Manager. Standalone repair/update/uninstall utility."""
+"""SchoolServer Security Manager: repair, update and uninstall utility."""
 import os
 import sys
 import json
@@ -8,7 +8,7 @@ import zipfile
 import tempfile
 import subprocess
 import urllib.request
-import urllib.error
+import threading
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -20,10 +20,18 @@ LOCAL = Path(os.environ.get("LOCALAPPDATA", str(Path.home())))
 ROAMING = Path(os.environ.get("APPDATA", str(Path.home())))
 INSTALL_DIR = LOCAL / "Programs" / APP_NAME
 DATA_DIR = LOCAL / APP_NAME
+QUARANTINE_DIR = DATA_DIR / "Quarantine"
 PROGRAMS = ROAMING / "Microsoft" / "Windows" / "Start Menu" / "Programs"
 STARTUP = PROGRAMS / "Startup"
 UNINSTALL_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\SchoolServerSecurity"
-MANAGER_VERSION = "1.0.0"
+MANAGER_VERSION = "1.1.0"
+BG = "#f3f7f4"
+PANEL = "#ffffff"
+INK = "#183126"
+MUTED = "#718078"
+GREEN = "#16864b"
+GREEN_DARK = "#11683a"
+BORDER = "#dce7df"
 
 
 def hidden_run(args, **kwargs):
@@ -37,10 +45,8 @@ def python_gui():
 
 
 def powershell(script):
-    return hidden_run(
-        ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
-        capture_output=True, text=True, timeout=30
-    )
+    return hidden_run(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+                      capture_output=True, text=True, timeout=30)
 
 
 def make_shortcut(link, target, args=""):
@@ -48,14 +54,12 @@ def make_shortcut(link, target, args=""):
         return "'" + str(value).replace("'", "''") + "'"
     link = Path(link)
     link.parent.mkdir(parents=True, exist_ok=True)
-    script = (
-        "$w=New-Object -ComObject WScript.Shell;"
-        "$s=$w.CreateShortcut(" + q(link) + ");"
-        "$s.TargetPath=" + q(target) + ";"
-        "$s.Arguments=" + q(args) + ";"
-        "$s.WorkingDirectory=" + q(INSTALL_DIR) + ";"
-        "$s.Description=" + q(APP_NAME) + ";$s.Save()"
-    )
+    script = ("$w=New-Object -ComObject WScript.Shell;"
+              "$s=$w.CreateShortcut(" + q(link) + ");"
+              "$s.TargetPath=" + q(target) + ";"
+              "$s.Arguments=" + q(args) + ";"
+              "$s.WorkingDirectory=" + q(Path.home()) + ";"
+              "$s.Description=" + q(APP_NAME + " Manager") + ";$s.Save()")
     result = powershell(script)
     if result.returncode:
         raise RuntimeError(result.stderr.strip() or "Windows konnte die Verknüpfung nicht erstellen.")
@@ -82,10 +86,17 @@ def download_and_validate():
     with zipfile.ZipFile(zip_path) as package:
         for info in package.infolist():
             name = info.filename.replace("\\", "/")
-            parts = Path(name).parts
+            parts = name.split("/")
             if name.startswith("/") or ".." in parts:
                 raise RuntimeError("Das Downloadpaket enthält einen ungültigen Dateipfad.")
-            if not (name == "sss_main.py" or name.startswith("SSS_Data/")):
+            if not (name.endswith("/sss_main.py") or name == "sss_main.py" or
+                    name.startswith("SSS_Data/") or "/SSS_Data/" in name):
+                continue
+            if "SSS_Data" in parts:
+                parts = parts[parts.index("SSS_Data"):]
+            elif parts[-1] == "sss_main.py":
+                parts = ["sss_main.py"]
+            else:
                 continue
             destination = payload.joinpath(*parts)
             if info.is_dir():
@@ -97,24 +108,42 @@ def download_and_validate():
     main = payload / "sss_main.py"
     requirements = payload / "SSS_Data" / "requirements.txt"
     metadata = payload / "SSS_Data" / "version.json"
-    if not main.is_file() or not requirements.is_file() or not metadata.is_file():
+    manager = payload / "SSS_Data" / "tools" / "sss_manager.py"
+    if not all(path.is_file() for path in (main, requirements, metadata, manager)):
         shutil.rmtree(stage, ignore_errors=True)
-        raise RuntimeError("Das SSS-Paket ist unvollständig. Es wurde nichts installiert.")
-    check = hidden_run([sys.executable, "-m", "py_compile", str(main)], capture_output=True, text=True)
+        raise RuntimeError("Das Paket ist unvollständig. Hauptprogramm, Manager oder Metadaten fehlen.")
+    check = hidden_run([sys.executable, "-m", "py_compile", str(main), str(manager)],
+                       capture_output=True, text=True)
     if check.returncode:
         shutil.rmtree(stage, ignore_errors=True)
-        raise RuntimeError("Die Hauptdatei besteht die Python-Syntaxprüfung nicht:\n" + check.stderr)
+        raise RuntimeError("Die Python-Syntaxprüfung ist fehlgeschlagen:\n" + check.stderr)
     version = json.loads(metadata.read_text(encoding="utf-8")).get("version", "unbekannt")
     return stage, payload, str(version)
 
 
+def sss_processes():
+    if os.name != "nt":
+        return []
+    script = ("Get-CimInstance Win32_Process | Where-Object {"
+              "$_.CommandLine -and $_.CommandLine -match 'sss_main\\.py' -and "
+              "$_.CommandLine -match 'SchoolServer Security'} | "
+              "Select-Object -ExpandProperty ProcessId")
+    result = powershell(script)
+    if result.returncode:
+        return []
+    return [x.strip() for x in result.stdout.splitlines() if x.strip().isdigit() and int(x) != os.getpid()]
+
+
 def install_or_repair():
+    running = sss_processes()
+    if running:
+        raise RuntimeError("SSS läuft noch. Bitte zuerst SchoolServer Security vollständig schließen und danach die Reparatur erneut starten.")
     stage, payload, version = download_and_validate()
     backup = INSTALL_DIR.with_name(INSTALL_DIR.name + ".manager-backup")
     try:
         INSTALL_DIR.parent.mkdir(parents=True, exist_ok=True)
         if backup.exists():
-            shutil.rmtree(backup)
+            shutil.rmtree(backup, ignore_errors=True)
         if INSTALL_DIR.exists():
             INSTALL_DIR.rename(backup)
         try:
@@ -125,10 +154,11 @@ def install_or_repair():
             if backup.exists():
                 backup.rename(INSTALL_DIR)
             raise
-        if backup.exists():
-            shutil.rmtree(backup, ignore_errors=True)
+        QUARANTINE_DIR.mkdir(parents=True, exist_ok=True)
         app = INSTALL_DIR / "sss_main.py"
+        manager = INSTALL_DIR / "SSS_Data" / "tools" / "sss_manager.py"
         make_shortcut(PROGRAMS / "SchoolServer Security.lnk", python_gui(), '"' + str(app) + '"')
+        make_shortcut(PROGRAMS / "SchoolServer Security Manager.lnk", python_gui(), '"' + str(manager) + '"')
         make_shortcut(STARTUP / "SchoolServer Security.lnk", python_gui(), '"' + str(app) + '"')
         req = INSTALL_DIR / "SSS_Data" / "requirements.txt"
         pip = hidden_run([sys.executable, "-m", "pip", "install", "-r", str(req)],
@@ -143,6 +173,8 @@ def install_or_repair():
                 winreg.SetValueEx(key, "InstallLocation", 0, winreg.REG_SZ, str(INSTALL_DIR))
         except Exception:
             pass
+        if backup.exists():
+            shutil.rmtree(backup, ignore_errors=True)
         return version
     finally:
         shutil.rmtree(stage, ignore_errors=True)
@@ -152,13 +184,13 @@ def uninstall():
     desktop = Path(os.environ.get("USERPROFILE", str(Path.home()))) / "Desktop"
     desktop.mkdir(parents=True, exist_ok=True)
     farewell = desktop / "SchoolServer Security - Abschied.log"
-    farewell.write_text(
-        "SchoolServer Security wurde entfernt.\n\n"
-        "Danke, dass du SSS verwendet hast. Wir hoffen, dass es dir gute Dienste geleistet hat.\n\n"
-        "Alle zu SSS gehörenden lokalen Programmdateien, Einstellungen, Protokolle und Quarantänedaten wurden entfernt.\n",
-        encoding="utf-8"
-    )
-    for link in (STARTUP / "SchoolServer Security.lnk", PROGRAMS / "SchoolServer Security.lnk"):
+    farewell.write_text("SchoolServer Security wurde entfernt.\n\n"
+                        "Danke, dass du SSS verwendet hast.\n\n"
+                        "Programmdateien, Einstellungen, Logs und Quarantänedaten wurden entfernt.\n",
+                        encoding="utf-8")
+    for link in (STARTUP / "SchoolServer Security.lnk",
+                 PROGRAMS / "SchoolServer Security.lnk",
+                 PROGRAMS / "SchoolServer Security Manager.lnk"):
         try:
             link.unlink(missing_ok=True)
         except OSError:
@@ -185,95 +217,163 @@ def installed_version():
     try:
         return str(json.loads(metadata.read_text(encoding="utf-8")).get("version", "unbekannt"))
     except Exception:
-        return "Installation beschädigt (Versionsdatei fehlt)"
+        return "Installation beschädigt"
 
 
 class Manager(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("SchoolServer Security · Verwaltung")
-        self.geometry("590x480")
-        self.minsize(540, 440)
-        self.configure(bg="#f4f7f6")
+        self.title("SSS Manager")
+        self.geometry("680x570")
+        self.minsize(620, 520)
+        self.configure(bg=BG)
         self.busy = False
+        self.option_add("*Font", ("Segoe UI", 10))
         style = ttk.Style(self)
         try:
-            style.theme_use("vista")
+            style.theme_use("clam")
         except tk.TclError:
             pass
-        style.configure("TFrame", background="#f4f7f6")
-        style.configure("Title.TLabel", font=("Segoe UI", 21, "bold"), background="#f4f7f6", foreground="#172b22")
-        style.configure("Info.TLabel", font=("Segoe UI", 10), background="#f4f7f6", foreground="#68776e")
-        style.configure("Action.TButton", font=("Segoe UI", 11), padding=11)
-        frame = ttk.Frame(self, padding=26)
-        frame.pack(fill="both", expand=True)
-        ttk.Label(frame, text="SchoolServer Security", style="Title.TLabel").pack(anchor="w")
-        ttk.Label(frame, text="Verwaltungs- und Wiederherstellungstool", style="Info.TLabel").pack(anchor="w", pady=(3, 18))
-        self.status = ttk.Label(frame, text="", style="Info.TLabel", wraplength=520)
-        self.status.pack(anchor="w", pady=(0, 14))
-        ttk.Button(frame, text="Installation prüfen", style="Action.TButton", command=self.check).pack(fill="x", pady=4)
-        ttk.Button(frame, text="SSS reparieren", style="Action.TButton", command=self.repair).pack(fill="x", pady=4)
-        ttk.Button(frame, text="SSS aktualisieren", style="Action.TButton", command=self.update).pack(fill="x", pady=4)
-        ttk.Button(frame, text="SSS vollständig deinstallieren", style="Action.TButton", command=self.remove).pack(fill="x", pady=4)
-        self.progress = ttk.Progressbar(frame, mode="indeterminate")
-        self.progress.pack(fill="x", pady=(18, 8))
-        ttk.Label(frame, text="Reparatur und Update laden das offizielle Python-Paket von GitHub.\nPersönliche SSS-Daten werden dabei nicht gelöscht.", style="Info.TLabel").pack(anchor="w")
+        style.configure("TFrame", background=BG)
+        style.configure("Panel.TFrame", background=PANEL, relief="flat")
+        style.configure("TLabel", background=BG, foreground=INK)
+        style.configure("Muted.TLabel", background=BG, foreground=MUTED, font=("Segoe UI", 9))
+        style.configure("Title.TLabel", background=BG, foreground=INK, font=("Segoe UI", 23, "bold"))
+        style.configure("Section.TLabel", background=PANEL, foreground=INK, font=("Segoe UI", 11, "bold"))
+        style.configure("TButton", font=("Segoe UI", 10, "bold"), padding=(14, 11),
+                        background=PANEL, foreground=INK, bordercolor=BORDER)
+        style.map("TButton", background=[("active", "#eaf3ed"), ("disabled", "#edf0ee")])
+        style.configure("Primary.TButton", background=GREEN, foreground="white",
+                        bordercolor=GREEN, padding=(14, 12))
+        style.map("Primary.TButton", background=[("active", GREEN_DARK), ("disabled", "#9ab9a5")],
+                  foreground=[("disabled", "white")])
+        style.configure("Danger.TButton", foreground="#a33b35")
+        style.configure("Horizontal.TProgressbar", troughcolor="#e7eee9",
+                        background=GREEN, bordercolor="#e7eee9", lightcolor=GREEN, darkcolor=GREEN)
+
+        outer = tk.Frame(self, bg=BG, padx=26, pady=24)
+        outer.pack(fill="both", expand=True)
+        header = tk.Frame(outer, bg=BG)
+        header.pack(fill="x", pady=(0, 20))
+        tk.Label(header, text="SSS", bg=GREEN, fg="white",
+                 font=("Segoe UI", 16, "bold"), width=4, height=2).pack(side="left", padx=(0, 14))
+        titles = tk.Frame(header, bg=BG)
+        titles.pack(side="left", fill="x", expand=True)
+        ttk.Label(titles, text="SchoolServer Security", style="Title.TLabel").pack(anchor="w")
+        ttk.Label(titles, text="MANAGER  ·  REPARATUR UND SYSTEMVERWALTUNG",
+                  style="Muted.TLabel").pack(anchor="w", pady=(3, 0))
+
+        panel = tk.Frame(outer, bg=PANEL, highlightbackground=BORDER,
+                         highlightthickness=1, padx=18, pady=17)
+        panel.pack(fill="x")
+        ttk.Label(panel, text="Installationsstatus", style="Section.TLabel").pack(anchor="w")
+        self.status = tk.Label(panel, text="", bg=PANEL, fg=MUTED,
+                               justify="left", anchor="w", wraplength=560,
+                               font=("Segoe UI", 9))
+        self.status.pack(fill="x", pady=(8, 2))
+
+        ttk.Label(outer, text="Aktionen", style="Section.TLabel").pack(anchor="w", pady=(20, 9))
+        actions = tk.Frame(outer, bg=BG)
+        actions.pack(fill="x")
+        self.check_button = ttk.Button(actions, text="Status aktualisieren", command=self.check)
+        self.check_button.pack(fill="x", pady=4)
+        self.repair_button = ttk.Button(actions, text="SSS reparieren", style="Primary.TButton",
+                                        command=self.repair)
+        self.repair_button.pack(fill="x", pady=4)
+        self.update_button = ttk.Button(actions, text="Nach Updates suchen", command=self.update_app)
+        self.update_button.pack(fill="x", pady=4)
+        self.remove_button = ttk.Button(actions, text="SSS vollständig deinstallieren",
+                                        style="Danger.TButton", command=self.remove)
+        self.remove_button.pack(fill="x", pady=4)
+        self.progress = ttk.Progressbar(outer, mode="indeterminate")
+        self.progress.pack(fill="x", pady=(17, 8))
+        ttk.Label(outer, text="Reparatur und Update laden das offizielle Python-Paket von GitHub. "
+                              "Einstellungen, Protokolle und Quarantäne bleiben bei einer Reparatur erhalten.",
+                  style="Muted.TLabel", wraplength=610).pack(anchor="w")
         self.check()
 
     def check(self):
-        local = installed_version()
-        self.status.configure(text=f"Installiert: {local}\nInstallationsordner: {INSTALL_DIR}\nDatenspeicher: {DATA_DIR}")
+        self.status.configure(text=f"Installiert: {installed_version()}\n"
+                                   f"Programm: {INSTALL_DIR}\n"
+                                   f"Daten: {DATA_DIR}\n"
+                                   f"Quarantäne: {QUARANTINE_DIR}")
+        self.check_button.configure(state="normal")
+
+    def set_busy(self, busy, label=""):
+        self.busy = busy
+        state = "disabled" if busy else "normal"
+        for button in (self.check_button, self.repair_button, self.update_button, self.remove_button):
+            button.configure(state=state)
+        if busy:
+            self.progress.start(12)
+            self.status.configure(text=label + "\nBitte warten. Dieses Fenster geöffnet lassen.")
+        else:
+            self.progress.stop()
+            self.check()
 
     def run_action(self, title, action):
         if self.busy:
             return
-        self.busy = True
-        self.progress.start(12)
-        self.status.configure(text=title + "\nBitte warten. Das Fenster geöffnet lassen.")
-        self.update_idletasks()
-        try:
-            result = action()
-            self.progress.stop()
-            self.busy = False
-            self.check()
-            messagebox.showinfo("SSS-Verwaltung", f"{title} erfolgreich.\nInstallierte Version: {result}")
-        except Exception as exc:
-            self.progress.stop()
-            self.busy = False
-            self.check()
-            messagebox.showerror("SSS-Verwaltung", f"{title} fehlgeschlagen:\n\n{exc}")
+        self.set_busy(True, title)
+
+        def work():
+            try:
+                result = action()
+                self.after(0, lambda: self.action_done(title, result, None))
+            except Exception as exc:
+                self.after(0, lambda error=str(exc): self.action_done(title, None, error))
+        threading.Thread(target=work, daemon=True).start()
+
+    def action_done(self, title, result, error):
+        self.set_busy(False)
+        if error:
+            messagebox.showerror("SSS Manager", f"{title} fehlgeschlagen:\n\n{error}", parent=self)
+        else:
+            messagebox.showinfo("SSS Manager", f"{title} erfolgreich.\nInstallierte Version: {result}", parent=self)
 
     def repair(self):
-        if messagebox.askyesno("SSS reparieren", "Die Programmdateien werden durch eine frische offizielle Version ersetzt. Einstellungen, Logs und Quarantäne bleiben erhalten. Fortfahren?"):
+        if messagebox.askyesno("SSS reparieren",
+            "Die Programmdateien werden durch eine frische offizielle Version ersetzt. "
+            "Einstellungen, Logs und Quarantäne bleiben erhalten.\n\nFortfahren?", parent=self):
             self.run_action("Reparatur", install_or_repair)
 
-    def update(self):
-        try:
-            latest = get_latest_version()
-        except Exception as exc:
-            messagebox.showerror("Updater", f"GitHub-Version konnte nicht geprüft werden:\n{exc}")
+    def update_app(self):
+        if self.busy:
             return
-        current = installed_version()
+        self.set_busy(True, "Suche nach einer neuen Version …")
+
+        def check_latest():
+            try:
+                latest = get_latest_version()
+                current = installed_version()
+                self.after(0, lambda: self.confirm_update(current, latest))
+            except Exception as exc:
+                self.after(0, lambda error=str(exc): self.action_done("Updateprüfung", None, error))
+        threading.Thread(target=check_latest, daemon=True).start()
+
+    def confirm_update(self, current, latest):
+        self.set_busy(False)
         if current == latest:
-            if not messagebox.askyesno("SSS aktualisieren", f"Version {latest} ist bereits installiert. Soll die Installation trotzdem frisch ersetzt werden?"):
-                return
-        elif not messagebox.askyesno("SSS aktualisieren", f"Installiert: {current}\nVerfügbar: {latest}\n\nJetzt aktualisieren?"):
-            return
-        self.run_action("Update", install_or_repair)
+            question = f"Version {latest} ist bereits installiert. Soll die Installation trotzdem repariert werden?"
+        else:
+            question = f"Installiert: {current}\nVerfügbar: {latest}\n\nJetzt aktualisieren?"
+        if messagebox.askyesno("SSS aktualisieren", question, parent=self):
+            self.run_action("Update", install_or_repair)
 
     def remove(self):
+        if self.busy:
+            return
         if not messagebox.askyesno("SSS vollständig entfernen",
-            "SSS-Programmordner, Einstellungen, Logs, Quarantäne, Startmenü- und Autostart-Verknüpfungen werden gelöscht.\n\n"
-            "Auf dem Desktop bleibt nur eine Abschieds-Logdatei zurück. Ollama als eigenständige Anwendung bleibt installiert.\n\n"
-            "Dieser Vorgang kann nicht rückgängig gemacht werden. Wirklich deinstallieren?"):
+            "Programmordner, Einstellungen, Logs, Quarantäne und Verknüpfungen werden gelöscht.\n"
+            "Ollama bleibt installiert. Auf dem Desktop bleibt eine Abschiedsdatei zurück.\n\n"
+            "Dieser Vorgang kann nicht rückgängig gemacht werden. Wirklich deinstallieren?", parent=self):
             return
         errors, farewell = uninstall()
         if errors:
             messagebox.showerror("Deinstallation teilweise fehlgeschlagen",
-                "Einige Dateien konnten nicht entfernt werden:\n" + "\n".join(errors) +
-                "\n\nBitte SSS schließen und die Deinstallation erneut versuchen.")
+                                 "\n".join(errors), parent=self)
         else:
-            messagebox.showinfo("SSS entfernt", f"SchoolServer Security wurde entfernt.\n\nAbschiedsdatei:\n{farewell}")
+            messagebox.showinfo("SSS entfernt", f"SSS wurde entfernt.\n\nAbschiedsdatei:\n{farewell}", parent=self)
         self.destroy()
 
 
@@ -281,6 +381,10 @@ if __name__ == "__main__":
     if os.name != "nt":
         root = tk.Tk()
         root.withdraw()
-        messagebox.showerror("Windows erforderlich", "Der SSS-Manager ist für Windows vorgesehen.")
+        messagebox.showerror("Windows erforderlich", "Der SSS Manager ist für Windows vorgesehen.")
         raise SystemExit(1)
+    try:
+        os.chdir(Path.home())
+    except OSError:
+        pass
     Manager().mainloop()
