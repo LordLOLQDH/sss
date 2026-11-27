@@ -16,11 +16,15 @@ jobs:
           python-version: "3.12"
       - name: Compile main application
         run: python -m py_compile sss_main.py
+      - name: Compile standalone manager
+        run: python -m py_compile SSS_Data/tools/sss_manager.py
       - name: Validate metadata
         run: python -c "import json; json.load(open('SSS_Data/version.json', encoding='utf-8')); json.load(open('version.json', encoding='utf-8'))"
       - name: Package clean Python app
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: Compress-Archive -Path sss_main.py, SSS_Data -DestinationPath SSS-Windows-Python.zip -Force
+        run: |
+          Compress-Archive -Path sss_main.py, SSS_Data -DestinationPath SSS-Windows-Python.zip -Force
+          Copy-Item SSS_Data/tools/sss_manager.py SSS-Manager.py
       - name: Publish Python-only package
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
@@ -29,7 +33,9 @@ jobs:
           name: SSS Windows · Python-Version
           prerelease: true
           body: "Aktueller Download: SSS-Windows-Python.zip. Das ältere SSS-Windows.zip ist ein historisches Paket und nicht mehr für Neuinstallationen vorgesehen."
-          files: SSS-Windows-Python.zip
+          files: |
+            SSS-Windows-Python.zip
+            SSS-Manager.py
           overwrite_files: true
       - name: Remove obsolete executable bundle
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
