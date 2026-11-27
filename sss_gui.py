@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """SSS 2.0 modern GUI. Single supported desktop client."""
-import sys,json,time,threading,shutil
+import sys,json,time,threading,shutil,subprocess
 from pathlib import Path
 from datetime import datetime
 from PySide6.QtCore import Qt,QObject,Signal,QThread,QTimer
@@ -35,6 +35,14 @@ class StatusWorker(QObject):
 class UpdateWorker(QObject):
  done=Signal(dict)
  def run(self):self.done.emit(update_check(VERSION))
+class PullWorker(QObject):
+ done=Signal(dict)
+ def __init__(self,model):super().__init__();self.model=model
+ def run(self):
+  try:
+   p=subprocess.run(["ollama","pull",self.model],capture_output=True,text=True,timeout=900)
+   self.done.emit({"ok":p.returncode==0,"output":(p.stdout or "")+"\n"+(p.stderr or "")})
+  except Exception as e:self.done.emit({"ok":False,"output":str(e)})
 class Main(QMainWindow):
  def __init__(self):
   super().__init__();self.c=load_cfg();self.rows=[];self.busy=False;self.ai_online=False;self.next=time.monotonic()+self.c["interval_minutes"]*60
@@ -48,7 +56,7 @@ class Main(QMainWindow):
    if not pix.isNull():logo.setPixmap(pix.scaled(54,54,Qt.KeepAspectRatio,Qt.SmoothTransformation))
   header.addWidget(logo);titles=QVBoxLayout();titles.setSpacing(1);h=QLabel("SchoolServer Security");h.setStyleSheet("font-size:22px;font-weight:850");sub=QLabel(f"SSS 2.0 · Local Security Engine · {VERSION}");sub.setStyleSheet("color:#718078");titles.addWidget(h);titles.addWidget(sub);header.addLayout(titles);header.addStretch();self.ai_label=QLabel("LOCAL KI · wird geprüft");self.ai_label.setStyleSheet("font-weight:750");header.addWidget(self.ai_label);self.ai_setup_btn=QPushButton("KI einrichten");self.ai_setup_btn.clicked.connect(self.ai_setup);header.addWidget(self.ai_setup_btn);l.addLayout(header)
   intro=QHBoxLayout();txt=QVBoxLayout();headline=QLabel("Sicherheitsübersicht");headline.setStyleSheet("font-size:27px;font-weight:850");desc=QLabel("Automatische lokale Prüfungen. Dateiaktionen erfolgen nachvollziehbar und mit Bestätigung.");desc.setStyleSheet("color:#718078");txt.addWidget(headline);txt.addWidget(desc);intro.addLayout(txt);intro.addStretch();self.scan_btn=QPushButton("Jetzt prüfen");self.scan_btn.setObjectName("primary");self.scan_btn.clicked.connect(self.scan);intro.addWidget(self.scan_btn);self.settings_btn=QPushButton("Einstellungen");self.settings_btn.clicked.connect(self.settings);intro.addWidget(self.settings_btn);self.update_btn=QPushButton("Updates");self.update_btn.clicked.connect(self.check_updates);intro.addWidget(self.update_btn)
-  if getattr(sys,"frozen",False):self.update_btn.hide()
+
   l.addLayout(intro)
   cards=QHBoxLayout();self.files=self.card("Geprüfte Dateien","—");self.flags=self.card("Auffälligkeiten","—");self.countdown=self.card("Nächste Prüfung","—");self.ai_card=self.card("Lokale KI","Status");[cards.addWidget(x) for x in [self.files,self.flags,self.countdown,self.ai_card]];l.addLayout(cards)
   bar=QHBoxLayout();bar.addWidget(QLabel("Prüfergebnisse"));bar.addStretch();self.status=QLabel("Bereit");self.status.setStyleSheet("color:#718078");bar.addWidget(self.status);self.quarantine_btn=QPushButton("In Quarantäne verschieben");self.quarantine_btn.clicked.connect(self.quarantine);bar.addWidget(self.quarantine_btn);self.manage_quarantine_btn=QPushButton("Quarantäne verwalten");self.manage_quarantine_btn.clicked.connect(self.manage_quarantine);bar.addWidget(self.manage_quarantine_btn);self.ai_btn=QPushButton("KI-Erklärung");self.ai_btn.clicked.connect(self.explain);bar.addWidget(self.ai_btn);l.addLayout(bar)
@@ -133,20 +141,58 @@ class Main(QMainWindow):
   self.up_worker.done.connect(self.up_thread.quit);self.up_worker.done.connect(self.up_worker.deleteLater);self.up_thread.finished.connect(self.up_thread.deleteLater);self.up_thread.start()
  def update_result(self,result):
   self.update_btn.setEnabled(True);self.update_btn.setText("Updates")
-  if not result.get("ok"):QMessageBox.warning(self,"Update-Prüfung",result.get("error","Updateprüfung fehlgeschlagen"));return
-  if not result.get("update_available"):QMessageBox.information(self,"SSS Update",f"SSS ist aktuell. Installierte Version: {VERSION}");return
+  if not result.get("ok"):
+   QMessageBox.warning(self,"Update-Prüfung",result.get("error","Updateprüfung fehlgeschlagen"));return
+  if not result.get("update_available"):
+   QMessageBox.information(self,"SSS Update",f"SSS ist aktuell. Installierte Version: {VERSION}");return
+  if not result.get("asset_url"):
+   QMessageBox.warning(self,"Update",f"Version {result.get('latest')} ist angekündigt, aber das Windows-ZIP wurde nicht gefunden.\n\n{result.get('release_url','')}");return
   latest=result.get("latest","?")
-  if QMessageBox.question(self,"Update verfügbar",f"Version {latest} ist verfügbar.\n\nJetzt herunterladen und installieren?\n\n{result.get('notes','')}")!=QMessageBox.Yes:return
+  answer=QMessageBox.question(self,"Update verfügbar",f"SSS {latest} ist verfügbar (installiert: {VERSION}).\n\n{result.get('notes','')}\n\nJetzt herunterladen und nach dem Schließen installieren?")
+  if answer!=QMessageBox.Yes:return
   download=install_update()
-  if download.get("ok"):QMessageBox.information(self,"Updater","Update erfolgreich. Bitte SSS neu starten.");self.close()
-  else:QMessageBox.critical(self,"Update",download.get("error","Update fehlgeschlagen"))
+  if download.get("ok"):
+   QMessageBox.information(self,"Updater",download.get("message","Update wird vorbereitet."));self.close()
+  else:QMessageBox.critical(self,"Update fehlgeschlagen",download.get("error","Update fehlgeschlagen"))
  def ai_setup(self):
-  d=QDialog(self);d.setWindowTitle("SSS · Lokale KI einrichten");d.resize(540,420);layout=QVBoxLayout(d)
-  title=QLabel("Lokale KI aktivieren");title.setStyleSheet("font-size:21px;font-weight:800");layout.addWidget(title)
-  guide=QLabel("1. Öffne die offizielle Ollama-Seite und lade Ollama für Windows herunter.\n2. Installiere Ollama mit den Standardeinstellungen.\n3. Öffne PowerShell und führe aus: ollama pull qwen2.5:3b\n4. Warte, bis das Modell vollständig geladen ist.\n5. Klicke auf Verbindung erneut prüfen.\n\nOllama und das Modell laufen lokal auf deinem Gerät. Das Modell benötigt mehrere GB Speicherplatz und ausreichend Arbeitsspeicher. Die KI-Erklärung ist nur eine zusätzliche Einschätzung und ersetzt niemals die Scanner-Ergebnisse.");guide.setWordWrap(True);guide.setStyleSheet("font-size:14px;line-height:1.6");layout.addWidget(guide)
-  link=QPushButton("Offizielle Ollama-Downloadseite öffnen");link.setObjectName("primary");link.clicked.connect(lambda:QDesktopServices.openUrl(QUrl("https://ollama.com/download/windows")));layout.addWidget(link)
-  cmds=QLabel("ollama pull qwen2.5:3b");cmds.setTextInteractionFlags(Qt.TextSelectableByMouse);cmds.setStyleSheet("background:white;border:1px solid #dfe8e2;border-radius:8px;padding:10px;font-family:Consolas");layout.addWidget(cmds)
-  actions=QHBoxLayout();refresh=QPushButton("KI-Status erneut prüfen");refresh.clicked.connect(lambda:(d.accept(),self.check_ai()));close=QPushButton("Schließen");close.clicked.connect(d.accept);actions.addWidget(refresh);actions.addWidget(close);layout.addLayout(actions);d.exec()
+  d=QDialog(self);d.setWindowTitle("SSS · KI verbinden");d.resize(580,460);layout=QVBoxLayout(d);layout.setSpacing(12)
+  title=QLabel("Lokale KI mit Ollama");title.setStyleSheet("font-size:21px;font-weight:800");layout.addWidget(title)
+  desc=QLabel("SSS nutzt Ollama lokal. Erst Ollama installieren, danach das Modell direkt hier laden und Verbindung testen.");desc.setWordWrap(True);layout.addWidget(desc)
+  guide=QLabel("1. Ollama für Windows installieren.\n2. Danach unten „Modell installieren / aktualisieren“ klicken. SSS führt den Download aus.\n3. Sobald der Modell-Download fertig ist, Verbindung prüfen.\n\nModell: "+DEFAULT_MODEL+"\nDer Modell-Download kann mehrere GB groß sein.")
+  guide.setWordWrap(True);guide.setStyleSheet("background:white;border:1px solid #dfe8e2;border-radius:12px;padding:14px");layout.addWidget(guide)
+  link=QPushButton("Ollama für Windows installieren");link.clicked.connect(lambda:QDesktopServices.openUrl(QUrl("https://ollama.com/download/windows")));layout.addWidget(link)
+  self.ai_setup_status=QLabel("Status wird geprüft …");self.ai_setup_status.setWordWrap(True);layout.addWidget(self.ai_setup_status)
+  buttons=QHBoxLayout();self.pull_btn=QPushButton("Modell installieren / aktualisieren");self.pull_btn.setObjectName("primary");test=QPushButton("Verbindung testen");close=QPushButton("Schließen");buttons.addWidget(self.pull_btn);buttons.addWidget(test);buttons.addWidget(close);layout.addLayout(buttons)
+  self.pull_btn.clicked.connect(lambda:self.pull_ai_model(d));test.clicked.connect(lambda:self.check_ai_for_dialog(d));close.clicked.connect(d.accept)
+  self.ai_setup_dialog=d;self.check_ai_for_dialog(d);d.exec()
+ def check_ai_for_dialog(self,d):
+  result=ai_status()
+  if not result.get("online"):
+   self.ai_setup_status.setText("Ollama offline. Installiere Ollama und starte es, danach erneut prüfen.")
+   self.ai_setup_status.setStyleSheet("color:#a45b18;font-weight:700");return
+  models=result.get("models",[])
+  if any(DEFAULT_MODEL in name for name in models):
+   self.ai_setup_status.setText("Verbunden. Modell "+DEFAULT_MODEL+" ist installiert.")
+   self.ai_setup_status.setStyleSheet("color:#16884b;font-weight:750")
+  else:
+   self.ai_setup_status.setText("Ollama erreichbar, Modell fehlt noch. Klicke auf „Modell installieren / aktualisieren“.")
+   self.ai_setup_status.setStyleSheet("color:#a45b18;font-weight:700")
+  self.ai_status_result(result)
+ def pull_ai_model(self,d):
+  if not ai_status().get("online"):
+   QMessageBox.warning(d,"Ollama nicht gefunden","Installiere zuerst Ollama für Windows und öffne es.");return
+  self.pull_btn.setEnabled(False);self.pull_btn.setText("Modell wird geladen …");self.ai_setup_status.setText("Modell-Download läuft. Das kann einige Minuten dauern.")
+  self.pull_thread=QThread(d);self.pull_worker=PullWorker(DEFAULT_MODEL);self.pull_worker.moveToThread(self.pull_thread)
+  self.pull_thread.started.connect(self.pull_worker.run);self.pull_worker.done.connect(self.pull_result)
+  self.pull_worker.done.connect(self.pull_thread.quit);self.pull_worker.done.connect(self.pull_worker.deleteLater);self.pull_thread.finished.connect(self.pull_thread.deleteLater);self.pull_thread.start()
+ def pull_result(self,result):
+  self.pull_btn.setEnabled(True);self.pull_btn.setText("Modell installieren / aktualisieren")
+  if result.get("ok"):
+   self.ai_setup_status.setText("Modell erfolgreich geladen. KI ist einsatzbereit.")
+   self.ai_setup_status.setStyleSheet("color:#16884b;font-weight:750");self.check_ai()
+  else:
+   self.ai_setup_status.setText("Modell-Download fehlgeschlagen: "+result.get("output","Unbekannter Fehler")[-1200:])
+   self.ai_setup_status.setStyleSheet("color:#a45b18;font-weight:700")
  def check_ai(self):
   self.status_thread=QThread(self);self.status_worker=StatusWorker();self.status_worker.moveToThread(self.status_thread)
   self.status_thread.started.connect(self.status_worker.run);self.status_worker.done.connect(self.ai_status_result)
@@ -156,15 +202,44 @@ class Main(QMainWindow):
   self.ai_label.setText("LOCAL KI · "+("ONLINE" if self.ai_online else "OFFLINE"))
   self.ai_card.value.setText("Online" if self.ai_online else "Offline")
  def settings(self):
-  d=QDialog(self);d.setWindowTitle("SSS Einstellungen");d.resize(620,460);layout=QVBoxLayout(d);form=QFormLayout()
-  dirs=QPlainTextEdit();dirs.setPlainText("\n".join(self.c["scan_dirs"]));exclude=QPlainTextEdit();exclude.setMaximumHeight(90);exclude.setPlainText("\n".join(self.c.get("excluded_dirs",[])))
-  interval=QSpinBox();interval.setRange(1,360);interval.setValue(int(self.c["interval_minutes"]));size=QSpinBox();size.setRange(1,5000);size.setValue(int(self.c["max_file_mb"]))
-  enabled=QCheckBox("KI-Auswertung aktivieren");enabled.setChecked(self.c.get("ai_enabled",True));model=QLineEdit(self.c.get("ai_model",DEFAULT_MODEL))
-  form.addRow("Scanordner (ein Pfad je Zeile)",dirs);form.addRow("Ausgeschlossene Pfade",exclude);form.addRow("Prüfintervall (Minuten)",interval);form.addRow("Max. Dateigröße (MB)",size);form.addRow(enabled);form.addRow("Ollama-Modell",model);layout.addLayout(form)
-  buttons=QHBoxLayout();buttons.addStretch();cancel=QPushButton("Abbrechen");save=QPushButton("Speichern");buttons.addWidget(cancel);buttons.addWidget(save);layout.addLayout(buttons);cancel.clicked.connect(d.reject)
-  def save():
-   self.c.update({"scan_dirs":[x.strip() for x in dirs.toPlainText().splitlines() if x.strip()],"excluded_dirs":[x.strip() for x in exclude.toPlainText().splitlines() if x.strip()],"interval_minutes":interval.value(),"max_file_mb":size.value(),"ai_enabled":enabled.isChecked(),"ai_model":model.text().strip() or DEFAULT_MODEL});save_cfg(self.c);self.next=time.monotonic()+self.c["interval_minutes"]*60;d.accept()
-  save.clicked.connect(save);d.exec()
+  d=QDialog(self);d.setWindowTitle("SSS · Einstellungen");d.resize(760,560);outer=QVBoxLayout(d)
+  tabs=QTabWidget();outer.addWidget(tabs)
+  scan_tab=QWidget();scan_layout=QVBoxLayout(scan_tab);scan_layout.setSpacing(10)
+  dirs=QPlainTextEdit();dirs.setPlaceholderText("Ein Ordnerpfad pro Zeile");dirs.setPlainText("\n".join(self.c["scan_dirs"]));dirs.setMinimumHeight(130)
+  exclude=QPlainTextEdit();exclude.setPlainText("\n".join(self.c.get("excluded_dirs",[])));exclude.setMinimumHeight(90)
+  scan_layout.addWidget(QLabel("Zu prüfende Ordner"));scan_layout.addWidget(dirs)
+  row=QHBoxLayout();add=QPushButton("Ordner auswählen …");remove=QPushButton("Ausgewählten Pfad entfernen");row.addWidget(add);row.addWidget(remove);scan_layout.addLayout(row)
+  add.clicked.connect(lambda:self.pick_scan_folder(dirs));remove.clicked.connect(lambda:self.remove_scan_path(dirs))
+  scan_layout.addWidget(QLabel("Ausgeschlossene Pfade"));scan_layout.addWidget(exclude)
+  numeric=QFormLayout();interval=QSpinBox();interval.setRange(1,360);interval.setValue(int(self.c["interval_minutes"]));interval.setSuffix(" Minuten")
+  size=QSpinBox();size.setRange(1,5000);size.setValue(int(self.c["max_file_mb"]));size.setSuffix(" MB")
+  numeric.addRow("Automatisches Prüfintervall",interval);numeric.addRow("Maximale Dateigröße",size);scan_layout.addLayout(numeric);scan_layout.addStretch()
+  tabs.addTab(scan_tab,"Scans")
+  ai_tab=QWidget();ai_layout=QVBoxLayout(ai_tab);ai_layout.setSpacing(10
+  )
+  enabled=QCheckBox("KI-Auswertung für ausgewählte Dateien aktivieren");enabled.setChecked(self.c.get("ai_enabled",True))
+  model=QLineEdit(self.c.get("ai_model",DEFAULT_MODEL));model.setPlaceholderText(DEFAULT_MODEL)
+  ai_layout.addWidget(enabled);ai_layout.addWidget(QLabel("Ollama-Modellname"));ai_layout.addWidget(model)
+  ai_text=QLabel("Ollama muss installiert und gestartet sein. Die Verbindung und das Modell lassen sich im Fenster „KI verbinden“ prüfen und laden.");ai_text.setWordWrap(True);ai_layout.addWidget(ai_text)
+  connect=QPushButton("KI verbinden / Modell verwalten");connect.setObjectName("primary");connect.clicked.connect(self.ai_setup);ai_layout.addWidget(connect);ai_layout.addStretch()
+  tabs.addTab(ai_tab,"KI")
+  buttons=QHBoxLayout();buttons.addStretch();cancel=QPushButton("Abbrechen");save=QPushButton("Änderungen speichern");save.setObjectName("primary");buttons.addWidget(cancel);buttons.addWidget(save);outer.addLayout(buttons);cancel.clicked.connect(d.reject)
+  def save_settings():
+   self.c.update({"scan_dirs":[x.strip() for x in dirs.toPlainText().splitlines() if x.strip()],"excluded_dirs":[x.strip() for x in exclude.toPlainText().splitlines() if x.strip()],"interval_minutes":interval.value(),"max_file_mb":size.value(),"ai_enabled":enabled.isChecked(),"ai_model":model.text().strip() or DEFAULT_MODEL})
+   save_cfg(self.c);self.next=time.monotonic()+self.c["interval_minutes"]*60;d.accept();self.status.setText("Einstellungen gespeichert")
+  save.clicked.connect(save_settings);d.exec()
+ def pick_scan_folder(self,editor):
+  folder=QFileDialog.getExistingDirectory(self,"Scanordner hinzufügen",str(Path.home()))
+  if folder:
+   existing={p.strip().casefold() for p in editor.toPlainText().splitlines() if p.strip()}
+   if folder.casefold() not in existing:editor.appendPlainText(folder)
+ def remove_scan_path(self,editor):
+  text=editor.toPlainText().splitlines()
+  if not text:return
+  selected=editor.textCursor().selectedText()
+  if selected and selected in text:text.remove(selected)
+  else:text.pop(-1)
+  editor.setPlainText("\n".join(text))
 if __name__=="__main__":
  app=QApplication(sys.argv);app.setApplicationName(APP_NAME);app.setFont(QFont("Segoe UI",10))
  from sss_setup import run_first_setup, read_config
