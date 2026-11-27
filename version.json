@@ -1,6 +1,6 @@
 {
   "name": "SchoolServer Security",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "channel": "stable",
-  "notes": "Reworked first-run wizard: no role prompt, IT Manager stored internally, optional school/device details, corrected navigation and refreshed Windows executable."
+  "notes": "Improved dashboard and settings layout, functional Ollama model installation/connect check, and Windows portable executable updater."
 }
