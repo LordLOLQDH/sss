@@ -31,3 +31,15 @@ jobs:
           body: "Aktueller Download: SSS-Windows-Python.zip. Das ältere SSS-Windows.zip ist ein historisches Paket und nicht mehr für Neuinstallationen vorgesehen."
           files: SSS-Windows-Python.zip
           overwrite_files: true
+      - name: Remove obsolete executable bundle
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = "application/vnd.github+json"; "X-GitHub-Api-Version" = "2022-11-28" }
+          try {
+            Invoke-RestMethod -Method Delete -Uri "https://api.github.com/repos/LordLOLQDH/sss/releases/assets/800286347" -Headers $headers
+          } catch {
+            if ($_.Exception.Response.StatusCode.value__ -ne 404) { throw }
+          }
