@@ -204,11 +204,13 @@ def install_update():
      with z.open(member) as src,dest.open("wb") as out:shutil.copyfileobj(src,out)
   if not (extract/"sss_main.py").is_file() or not (extract/"SSS_Data"/"version.json").is_file():
    raise RuntimeError("Das Update-Archiv ist unvollständig. Die bestehende Installation bleibt unverändert.")
+  check=subprocess.run([sys.executable,"-m","py_compile",str(extract/"sss_main.py")],capture_output=True,text=True)
+  if check.returncode:raise RuntimeError("Die neue Hauptdatei besteht die Python-Syntaxprüfung nicht: "+check.stderr)
   ps=stage/"apply.ps1"
   quote=lambda x:"'"+str(x).replace("'","''")+"'"
   script="$ErrorActionPreference='Stop'\n$pidToWait="+str(os.getpid())+"\nwhile(Get-Process -Id $pidToWait -ErrorAction SilentlyContinue){Start-Sleep -Milliseconds 700}\n"
   script+="Copy-Item -LiteralPath "+quote(extract/"sss_main.py")+" -Destination "+quote(ROOT/"sss_main.py")+" -Force\n"
-  script+="$srcData = "+quote(extract/"SSS_Data")+"\n$dstData = "+quote(ROOT/"SSS_Data")+"\nif(!(Test-Path $dstData)){New-Item -ItemType Directory -Force -Path $dstData | Out-Null}\nCopy-Item -Path (Join-Path $srcData '*') -Destination $dstData -Recurse -Force\n"
+  script+="$srcData = "+quote(extract/"SSS_Data")+"\n$dstData = "+quote(ROOT/"SSS_Data")+"\nif(Test-Path $dstData){Remove-Item -LiteralPath $dstData -Recurse -Force}\nCopy-Item -LiteralPath $srcData -Destination $dstData -Recurse -Force\n"
   script+="Start-Process -FilePath "+quote(_python_gui())+" -ArgumentList "+quote(ROOT/"sss_main.py")+" -WorkingDirectory "+quote(ROOT)+"\nRemove-Item -LiteralPath "+quote(stage)+" -Recurse -Force\n"
   ps.write_text(script,encoding="utf-8")
   subprocess.Popen(["powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File",str(ps)],creationflags=getattr(subprocess,"CREATE_NEW_PROCESS_GROUP",0x200),close_fds=True)
