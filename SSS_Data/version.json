@@ -1,6 +1,6 @@
 {
   "name": "SchoolServer Security",
-  "version": "2.4.8",
+  "version": "2.4.9",
   "channel": "stable",
-  "notes": "Update 2.4.8: Der In-App-Updater ersetzt jetzt den gesamten Installationsordner durch die neue Programmversion. Veraltete Programmdateien bleiben nicht zurück; Einstellungen, Logs, Quarantäne und Freigaben außerhalb des Installationsordners bleiben erhalten. Bei einem Fehler wird die vorherige Installation wiederhergestellt."
+  "notes": "Wiederherstellung repariert: Bereits identische Dateien am Ursprungsort werden als schon wiederhergestellt erkannt und die redundante Quarantänekopie wird entfernt. Wenn eine andere Datei denselben Namen belegt, wird die Quarantänedatei unter einem eindeutigen Namen '(wiederhergestellt N)' abgelegt, statt sie zu blockieren oder zu überschreiben. SHA-256-Prüfung und persistente Freigabeliste bleiben aktiv."
 }
