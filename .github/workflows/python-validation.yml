@@ -1,0 +1,18 @@
+name: Python validation
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  syntax:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile main application
+        run: python -m py_compile sss_main.py
+      - name: Validate metadata
+        run: python -c "import json; json.load(open('SSS_Data/version.json', encoding='utf-8')); json.load(open('version.json', encoding='utf-8'))"
