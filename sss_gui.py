@@ -50,7 +50,7 @@ class PullWorker(QObject):
 def autostart_enabled():
  try:
   import winreg
-  with winreg.OpenKey(winreg.HKEY_CURRENT_USER,r"Software\\Microsoft\\Windows\\CurrentVersion\\Run",0,winreg.KEY_READ) as key:
+  with winreg.OpenKey(winreg.HKEY_CURRENT_USER,r"Software\Microsoft\Windows\CurrentVersion\Run",0,winreg.KEY_READ) as key:
    try: value,_=winreg.QueryValueEx(key,"SchoolServer Security")
    except FileNotFoundError:return False
    return bool(value)
@@ -58,7 +58,7 @@ def autostart_enabled():
 def set_autostart(enabled):
  try:
   import winreg
-  keypath=r"Software\\Microsoft\\Windows\\CurrentVersion\\Run"
+  keypath=r"Software\Microsoft\Windows\CurrentVersion\Run"
   with winreg.OpenKey(winreg.HKEY_CURRENT_USER,keypath,0,winreg.KEY_SET_VALUE) as key:
    if enabled:
     executable='"'+str(Path(sys.executable).resolve())+'"'
@@ -297,7 +297,7 @@ if __name__=="__main__":
    notes=meta.get("notes","")
   except Exception:notes="Neue Funktionen und Verbesserungen."
   def show_whats_new():
-   QMessageBox.information(w,"SSS wurde aktualisiert",f"Version {VERSION} ist jetzt installiert.\\n\\nNeu in dieser Version:\\n{notes}\\n\\nLogs und Quarantäneverwaltung findest du direkt in SSS.")
+   QMessageBox.information(w,"SSS wurde aktualisiert",f"Version {VERSION} ist jetzt installiert.\n\nNeu in dieser Version:\n{notes}\n\nLogs und Quarantäneverwaltung findest du direkt in SSS.")
    cfg["seen_version"]=VERSION;save_cfg(cfg)
   QTimer.singleShot(900,show_whats_new)
  sys.exit(app.exec())
