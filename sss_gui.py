@@ -229,8 +229,16 @@ class Main(QMainWindow):
   self.status_worker.done.connect(self.status_thread.quit);self.status_worker.done.connect(self.status_worker.deleteLater);self.status_thread.finished.connect(self.status_thread.deleteLater);self.status_thread.start()
  def ai_status_result(self,result):
   self.ai_online=result.get("online",False)
-  self.ai_label.setText("LOCAL KI · "+("ONLINE" if self.ai_online else "OFFLINE"))
-  self.ai_card.value.setText("Online" if self.ai_online else "Offline")
+  model_installed=self.c.get("ai_model",DEFAULT_MODEL) in result.get("models",[])
+  if self.ai_online and model_installed:
+   self.ai_label.setText("LOCAL KI · BEREIT")
+   self.ai_card.value.setText("Bereit")
+  elif self.ai_online:
+   self.ai_label.setText("LOCAL KI · MODELL FEHLT")
+   self.ai_card.value.setText("Modell fehlt")
+  else:
+   self.ai_label.setText("LOCAL KI · OFFLINE")
+   self.ai_card.value.setText("Offline")
  def settings(self):
   d=QDialog(self);d.setWindowTitle("SSS · Einstellungen");d.resize(760,560);outer=QVBoxLayout(d)
   tabs=QTabWidget();outer.addWidget(tabs)
