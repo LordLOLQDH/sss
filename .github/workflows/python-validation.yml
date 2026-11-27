@@ -28,5 +28,6 @@ jobs:
           tag_name: latest
           name: SSS Windows · Python-Version
           prerelease: true
+          body: "Aktueller Download: SSS-Windows-Python.zip. Das ältere SSS-Windows.zip ist ein historisches Paket und nicht mehr für Neuinstallationen vorgesehen."
           files: SSS-Windows-Python.zip
           overwrite_files: true
