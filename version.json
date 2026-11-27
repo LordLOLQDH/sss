@@ -1,6 +1,6 @@
 {
   "name": "SchoolServer Security",
-  "version": "2.4.3",
+  "version": "2.4.4",
   "channel": "stable",
-  "notes": "SSS 2.4.3: Enthält einen harmlosen Demo-Testordner mit Beispieldateien. Der Windows-Updater übernimmt den Testordner und erstellt bei Bedarf das Updater-Logverzeichnis, ohne Einstellungen, Logs oder Quarantäne zu überschreiben."
+  "notes": "SSS 2.4.4: Deutlich schnellere Dateiprüfung durch Metadaten-Cache und Wegfall einzelner ClamAV-Prozessstarts. Unveränderte Dateien werden bei Folgescans aus dem Cache geladen."
 }
