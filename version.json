@@ -1,6 +1,6 @@
 {
   "name": "SchoolServer Security",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "channel": "stable",
-  "notes": "Improved dashboard and settings layout, functional Ollama model installation/connect check, and Windows portable executable updater."
+  "notes": "Scanprotokolle mit Logdatei und Logviewer, Quarantäneordnerpfad sichtbar mit Explorer-Shortcut, SSS-Logo als Windows-EXE-Icon, Versionshinweisfenster bei jedem neuen Update. KI-Setup-Syntaxfehler behoben."
 }
