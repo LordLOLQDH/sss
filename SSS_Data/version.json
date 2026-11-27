@@ -2,5 +2,5 @@
   "name": "SchoolServer Security",
   "version": "2.3.0",
   "channel": "stable",
-  "notes": "Neue Windows-App-Struktur mit sss_main.py als Einstiegspunkt."
+  "notes": "Windows-App mit Startmenü-Verknüpfung, Autostart-Ordner, automatischer Update-Prüfung, ZIP-Updater und vollständiger SSS-Deinstallation."
 }
