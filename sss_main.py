@@ -518,10 +518,16 @@ class Main(QMainWindow):
   d=QDialog(self);d.setWindowTitle("SSS · Protokolle");d.resize(850,560);layout=QVBoxLayout(d)
   path=QLabel("Logdatei: "+str(LOGFILE));path.setTextInteractionFlags(Qt.TextSelectableByMouse);layout.addWidget(path)
   box=QPlainTextEdit();box.setReadOnly(True)
-  try:box.setPlainText(LOGFILE.read_text(encoding="utf-8")[-250000:])
-  except Exception as e:box.setPlainText("Log nicht verfügbar: "+str(e))
-  layout.addWidget(box);buttons=QHBoxLayout();refresh=QPushButton("Aktualisieren");open_btn=QPushButton("Logdatei öffnen");close=QPushButton("Schließen");buttons.addWidget(refresh);buttons.addWidget(open_btn);buttons.addStretch();buttons.addWidget(close);layout.addLayout(buttons)
-  refresh.clicked.connect(lambda:box.setPlainText(LOGFILE.read_text(encoding="utf-8")[-250000:] if LOGFILE.exists() else ""));open_btn.clicked.connect(lambda:QDesktopServices.openUrl(QUrl.fromLocalFile(str(LOGFILE))));close.clicked.connect(d.accept);d.exec()
+  def read_log_history():
+   parts=[]
+   for log_path in [LOGFILE]+[Path(str(LOGFILE)+"."+str(i)) for i in range(1,6)]:
+    if log_path.is_file():
+     try:parts.append("===== "+log_path.name+" =====\\n"+log_path.read_text(encoding="utf-8",errors="replace")[-60000:])
+     except Exception as exc:parts.append("===== "+log_path.name+" =====\\nLesefehler: "+str(exc))
+   return "\\n\\n".join(parts)[-250000:] or "Noch keine Protokolleinträge vorhanden."
+  box.setPlainText(read_log_history())
+  layout.addWidget(box);buttons=QHBoxLayout();refresh=QPushButton("Aktualisieren");open_btn=QPushButton("Aktuelles Log öffnen");close=QPushButton("Schließen");buttons.addWidget(refresh);buttons.addWidget(open_btn);buttons.addStretch();buttons.addWidget(close);layout.addLayout(buttons)
+  refresh.clicked.connect(lambda:box.setPlainText(read_log_history()));open_btn.clicked.connect(lambda:QDesktopServices.openUrl(QUrl.fromLocalFile(str(LOGFILE))));close.clicked.connect(d.accept);d.exec()
 if __name__=="__main__":
  if bootstrap_install():sys.exit(0)
  if os.name=="nt":
