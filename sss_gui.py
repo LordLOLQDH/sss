@@ -47,6 +47,27 @@ class PullWorker(QObject):
    p=subprocess.run(["ollama","pull",self.model],capture_output=True,text=True,timeout=900)
    self.done.emit({"ok":p.returncode==0,"output":(p.stdout or "")+"\n"+(p.stderr or "")})
   except Exception as e:self.done.emit({"ok":False,"output":str(e)})
+def autostart_enabled():
+ try:
+  import winreg
+  with winreg.OpenKey(winreg.HKEY_CURRENT_USER,r"Software\\Microsoft\\Windows\\CurrentVersion\\Run",0,winreg.KEY_READ) as key:
+   try: value,_=winreg.QueryValueEx(key,"SchoolServer Security")
+   except FileNotFoundError:return False
+   return bool(value)
+ except Exception:return False
+def set_autostart(enabled):
+ try:
+  import winreg
+  keypath=r"Software\\Microsoft\\Windows\\CurrentVersion\\Run"
+  with winreg.OpenKey(winreg.HKEY_CURRENT_USER,keypath,0,winreg.KEY_SET_VALUE) as key:
+   if enabled:
+    executable='"'+str(Path(sys.executable).resolve())+'"'
+    winreg.SetValueEx(key,"SchoolServer Security",0,winreg.REG_SZ,executable)
+   else:
+    try:winreg.DeleteValue(key,"SchoolServer Security")
+    except FileNotFoundError:pass
+  return True,""
+ except Exception as exc:return False,str(exc)
 class Main(QMainWindow):
  def __init__(self):
   super().__init__();self.c=load_cfg();self.rows=[];self.busy=False;self.ai_online=False;self.next=time.monotonic()+self.c["interval_minutes"]*60
@@ -221,6 +242,7 @@ class Main(QMainWindow):
   row=QHBoxLayout();add=QPushButton("Ordner auswählen …");remove=QPushButton("Ausgewählten Pfad entfernen");row.addWidget(add);row.addWidget(remove);scan_layout.addLayout(row)
   add.clicked.connect(lambda:self.pick_scan_folder(dirs));remove.clicked.connect(lambda:self.remove_scan_path(dirs))
   scan_layout.addWidget(QLabel("Ausgeschlossene Pfade"));scan_layout.addWidget(exclude)
+  autostart=QCheckBox("SSS beim Windows-Anmelden automatisch starten");autostart.setChecked(autostart_enabled());scan_layout.addWidget(autostart)
   numeric=QFormLayout();interval=QSpinBox();interval.setRange(1,360);interval.setValue(int(self.c["interval_minutes"]));interval.setSuffix(" Minuten")
   size=QSpinBox();size.setRange(1,5000);size.setValue(int(self.c["max_file_mb"]));size.setSuffix(" MB")
   numeric.addRow("Automatisches Prüfintervall",interval);numeric.addRow("Maximale Dateigröße",size);scan_layout.addLayout(numeric);scan_layout.addStretch()
@@ -235,7 +257,9 @@ class Main(QMainWindow):
   tabs.addTab(ai_tab,"KI")
   buttons=QHBoxLayout();buttons.addStretch();cancel=QPushButton("Abbrechen");save=QPushButton("Änderungen speichern");save.setObjectName("primary");buttons.addWidget(cancel);buttons.addWidget(save);outer.addLayout(buttons);cancel.clicked.connect(d.reject)
   def save_settings():
-   self.c.update({"scan_dirs":[x.strip() for x in dirs.toPlainText().splitlines() if x.strip()],"excluded_dirs":[x.strip() for x in exclude.toPlainText().splitlines() if x.strip()],"interval_minutes":interval.value(),"max_file_mb":size.value(),"ai_enabled":enabled.isChecked(),"ai_model":model.text().strip() or DEFAULT_MODEL})
+   ok,msg=set_autostart(autostart.isChecked())
+   if not ok:QMessageBox.warning(d,"Autostart","Autostart konnte nicht gesetzt werden: "+msg)
+   self.c.update({"autostart":autostart.isChecked(),"scan_dirs":[x.strip() for x in dirs.toPlainText().splitlines() if x.strip()],"excluded_dirs":[x.strip() for x in exclude.toPlainText().splitlines() if x.strip()],"interval_minutes":interval.value(),"max_file_mb":size.value(),"ai_enabled":enabled.isChecked(),"ai_model":model.text().strip() or DEFAULT_MODEL})
    save_cfg(self.c);logger.info("Einstellungen gespeichert");self.next=time.monotonic()+self.c["interval_minutes"]*60;d.accept();self.status.setText("Einstellungen gespeichert")
   save.clicked.connect(save_settings);d.exec()
  def pick_scan_folder(self,editor):
