@@ -125,8 +125,8 @@ def sss_processes():
     if os.name != "nt":
         return []
     script = ("Get-CimInstance Win32_Process | Where-Object {"
-              "$_.CommandLine -and $_.CommandLine -match 'sss_main\.py' -and $_.Name -match '^pythonw?\.exe -and "
-              "$_.CommandLine -match 'SchoolServer Security'} | "
+              "$_.Name -match '^pythonw?\\.exe$' -and $_.CommandLine -and "
+              "$_.CommandLine -match 'sss_main\\.py' -and $_.CommandLine -match 'SchoolServer Security'} | "
               "Select-Object -ExpandProperty ProcessId")
     result = powershell(script)
     if result.returncode:
