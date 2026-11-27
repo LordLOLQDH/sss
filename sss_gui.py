@@ -166,7 +166,8 @@ class Main(QMainWindow):
   d=QDialog(self);d.setWindowTitle("SSS · KI verbinden");d.resize(580,460);layout=QVBoxLayout(d);layout.setSpacing(12)
   title=QLabel("Lokale KI mit Ollama");title.setStyleSheet("font-size:21px;font-weight:800");layout.addWidget(title)
   desc=QLabel("SSS nutzt Ollama lokal. Erst Ollama installieren, danach das Modell direkt hier laden und Verbindung testen.");desc.setWordWrap(True);layout.addWidget(desc)
-  model_name=self.c.get("ai_model",DEFAULT_MODEL)\n  guide=QLabel("1. Ollama für Windows installieren.\\n2. Danach unten „Modell installieren / aktualisieren“ klicken. SSS führt den Download aus.\\n3. Sobald der Modell-Download fertig ist, Verbindung prüfen.\\n\\nModell: "+model_name+"\\nDer Modell-Download kann mehrere GB groß sein.")
+  model_name=self.c.get("ai_model",DEFAULT_MODEL)
+  guide=QLabel("1. Ollama für Windows installieren.\\n2. Danach unten „Modell installieren / aktualisieren“ klicken. SSS führt den Download aus.\\n3. Sobald der Modell-Download fertig ist, Verbindung prüfen.\\n\\nModell: "+model_name+"\\nDer Modell-Download kann mehrere GB groß sein.")
   guide.setWordWrap(True);guide.setStyleSheet("background:white;border:1px solid #dfe8e2;border-radius:12px;padding:14px");layout.addWidget(guide)
   link=QPushButton("Ollama für Windows installieren");link.clicked.connect(lambda:QDesktopServices.openUrl(QUrl("https://ollama.com/download/windows")));layout.addWidget(link)
   self.ai_setup_status=QLabel("Status wird geprüft …");self.ai_setup_status.setWordWrap(True);layout.addWidget(self.ai_setup_status)
@@ -190,7 +191,8 @@ class Main(QMainWindow):
   if not ai_status().get("online"):
    QMessageBox.warning(d,"Ollama nicht gefunden","Installiere zuerst Ollama für Windows und öffne es.");return
   self.pull_btn.setEnabled(False);self.pull_btn.setText("Modell wird geladen …");self.ai_setup_status.setText("Modell-Download läuft. Das kann einige Minuten dauern.")
-  model_name=self.c.get("ai_model",DEFAULT_MODEL)\n  self.pull_thread=QThread(d);self.pull_worker=PullWorker(model_name);self.pull_worker.moveToThread(self.pull_thread)
+  model_name=self.c.get("ai_model",DEFAULT_MODEL)
+  self.pull_thread=QThread(d);self.pull_worker=PullWorker(model_name);self.pull_worker.moveToThread(self.pull_thread)
   self.pull_thread.started.connect(self.pull_worker.run);self.pull_worker.done.connect(self.pull_result)
   self.pull_worker.done.connect(self.pull_thread.quit);self.pull_worker.done.connect(self.pull_worker.deleteLater);self.pull_thread.finished.connect(self.pull_thread.deleteLater);self.pull_thread.start()
  def pull_result(self,result):
@@ -262,4 +264,15 @@ if __name__=="__main__":
  from sss_setup import run_first_setup, read_config
  if not read_config().get("profile_completed"):
   if not run_first_setup():sys.exit(0)
- w=Main();w.show();sys.exit(app.exec())
+ w=Main();w.show()
+ cfg=load_cfg()
+ if cfg.get("seen_version")!=VERSION:
+  try:
+   meta=json.loads((Path(__file__).resolve().parent/"version.json").read_text(encoding="utf-8"))
+   notes=meta.get("notes","")
+  except Exception:notes="Neue Funktionen und Verbesserungen."
+  def show_whats_new():
+   QMessageBox.information(w,"SSS wurde aktualisiert",f"Version {VERSION} ist jetzt installiert.\\n\\nNeu in dieser Version:\\n{notes}\\n\\nLogs und Quarantäneverwaltung findest du direkt in SSS.")
+   cfg["seen_version"]=VERSION;save_cfg(cfg)
+  QTimer.singleShot(900,show_whats_new)
+ sys.exit(app.exec())
