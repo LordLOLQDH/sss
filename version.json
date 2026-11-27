@@ -1,6 +1,6 @@
 {
   "name": "SchoolServer Security",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "channel": "stable",
-  "notes": "Wechsel auf reine Python-Distribution mit Quellcode-Updater. EXE-Build entfernt. Python-Startskript, Updater und Ollama-Modellprüfung korrigiert."
+  "notes": "Neue eigenständige Hauptdatei: Scanner, Quarantäne, Protokolle, Einstellungen, Ollama-KI und Quellcode-Updater sind direkt in sss_gui.py integriert. Keine EXE und keine BAT zum Starten erforderlich."
 }
