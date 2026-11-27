@@ -1,6 +1,6 @@
 {
   "name": "SchoolServer Security",
-  "version": "2.4.1",
+  "version": "2.4.2",
   "channel": "stable",
-  "notes": "SSS 2.4.1: Einheitliches SSS-Logo, grüne Oberfläche, Updateinstallation nur nach ausdrücklicher Zustimmung und rotierende, ausführlichere Ereignisprotokolle."
+  "notes": "SSS 2.4.2: Reparierter Windows-Updater mit sauberem Programmende, protokollierter Aktualisierung und überprüftem Neustart. Einstellungen, Protokolle und Quarantäne bleiben bei Updates erhalten."
 }
