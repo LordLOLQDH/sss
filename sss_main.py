@@ -8,14 +8,16 @@ from PySide6.QtGui import QFont, QDesktopServices, QPixmap, QIcon
 from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import *
 import hashlib,re,urllib.request,urllib.error
+from logging.handlers import RotatingFileHandler
 APP_NAME="SchoolServer Security"
 ROOT=Path(__file__).resolve().parent
+APP_ICON=ROOT/"SSS_Data"/"assets"/"Sicherheits-Schild mit Servern und Schloss.png"
 APP_DIR=Path(os.environ.get("LOCALAPPDATA",str(Path.home()))) / "Programs" / APP_NAME
 STARTUP_DIR=Path(os.environ.get("APPDATA",str(Path.home()))) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup"
 PROGRAMS_DIR=Path(os.environ.get("APPDATA",str(Path.home()))) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
 DATA_DIR=Path(os.environ.get("LOCALAPPDATA",str(Path.home())))/"SchoolServer Security"
 QUARANTINE=DATA_DIR/"Quarantine"
-VERSION="2.4.0"
+VERSION="2.4.1"
 DEFAULT_MODEL="qwen2.5:3b"
 SCRIPT_EXT={".ps1",".bat",".cmd",".vbs",".js",".py",".hta",".scr",".jse",".vbe"}
 RULES=[(r"powershell.{0,80}-(enc|encodedcommand)","PowerShell encoded command"),(r"\b(eval|exec)\s*\(","Dynamic code execution"),(r"\b(shell=True|os\.system\s*\()","Shell execution"),(r"frombase64string.{0,100}(invoke|exec|eval)","Decode-and-execute pattern")]
@@ -114,8 +116,13 @@ def install_update():
 CONFIG=DATA_DIR/"settings.json"
 LOGFILE=DATA_DIR/"sss.log"
 DATA_DIR.mkdir(parents=True,exist_ok=True)
-logging.basicConfig(filename=str(LOGFILE),level=logging.INFO,format="%(asctime)s | %(levelname)s | %(message)s",encoding="utf-8")
 logger=logging.getLogger("SSS")
+logger.setLevel(logging.INFO)
+logger.propagate=False
+if not logger.handlers:
+ handler=RotatingFileHandler(LOGFILE,maxBytes=2*1024*1024,backupCount=5,encoding="utf-8")
+ handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(message)s"))
+ logger.addHandler(handler)
 DEFAULT={"scan_dirs":[str(Path.home()/"Downloads"),str(Path.home()/"Desktop")],"excluded_dirs":[],"interval_minutes":10,"max_file_mb":200,"ai_enabled":True,"ai_model":DEFAULT_MODEL,"quarantine_extensions":[],"ai_auto_quarantine":False,"ai_quarantine_threshold":95}
 STYLE="""QWidget{background:#f4f7f6;color:#172b22;font-family:'Segoe UI';font-size:13px} QFrame#card{background:white;border:1px solid #dfe8e2;border-radius:14px} QPushButton{background:white;border:1px solid #dfe8e2;border-radius:9px;padding:9px 13px;font-weight:600} QPushButton:hover{background:#edf5ef} QPushButton#primary{background:#159653;color:white;border-color:#159653} QTableWidget{background:white;border:1px solid #dfe8e2;border-radius:12px;selection-background-color:#e7f4eb} QHeaderView::section{background:#f8faf9;border:0;padding:10px;color:#718078;font-weight:700}"""
 def load_cfg():
@@ -215,7 +222,7 @@ def _ps_quote(value):
  return "'" + str(value).replace("'","''") + "'"
 def _make_shortcut(link,target,args=""):
  link=Path(link);link.parent.mkdir(parents=True,exist_ok=True)
- ps="$w=New-Object -ComObject WScript.Shell;$s=$w.CreateShortcut("+_ps_quote(link)+");$s.TargetPath="+_ps_quote(target)+";$s.Arguments="+_ps_quote(args)+";$s.WorkingDirectory="+_ps_quote(ROOT)+";$s.Description="+_ps_quote(APP_NAME)+";$s.Save()"
+ ps="$w=New-Object -ComObject WScript.Shell;$s=$w.CreateShortcut("+_ps_quote(link)+");$s.TargetPath="+_ps_quote(target)+";$s.Arguments="+_ps_quote(args)+";$s.WorkingDirectory="+_ps_quote(ROOT)+";$s.Description="+_ps_quote(APP_NAME)+";if(Test-Path "+_ps_quote(APP_ICON)+"){$s.IconLocation="+_ps_quote(str(APP_ICON)+",0")+"};$s.Save()"
  result=subprocess.run(["powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-Command",ps],capture_output=True,text=True,timeout=20)
  if result.returncode:raise RuntimeError(result.stderr.strip() or "Windows-Verknüpfung konnte nicht erstellt werden.")
 def autostart_enabled():
@@ -292,13 +299,12 @@ class Main(QMainWindow):
  def __init__(self):
   super().__init__();self.c=load_cfg();self.rows=[];self.busy=False;self.ai_online=False;self.next=time.monotonic()+self.c["interval_minutes"]*60
   self.setWindowTitle(f"{APP_NAME} {VERSION}");self.resize(1180,770);
-  logo_icon=Path(__file__).resolve().parent/"SSS_Data"/"assets"/"Sicherheits-Schild mit Servern und Schloss.png"
-  if logo_icon.exists():self.setWindowIcon(QIcon(str(logo_icon)))
+  if APP_ICON.is_file():self.setWindowIcon(QIcon(str(APP_ICON)))
   logger.info("Programmstart Version %s",VERSION);self.setMinimumSize(900,620);self.setStyleSheet(STYLE)
   self.build();self.tick_timer=QTimer(self);self.tick_timer.timeout.connect(self.tick);self.tick_timer.start(1000);QTimer.singleShot(1000,self.check_ai);QTimer.singleShot(2500,self.scan);QTimer.singleShot(7000,self.check_updates)
  def build(self):
   central=QWidget();self.setCentralWidget(central);l=QVBoxLayout(central);l.setContentsMargins(26,22,26,22);l.setSpacing(15)
-  header=QHBoxLayout();logo=QLabel();logo_path=Path(__file__).resolve().parent/"SSS_Data"/"assets"/"Sicherheits-Schild mit Servern und Schloss.png"
+  header=QHBoxLayout();logo=QLabel();logo_path=APP_ICON
   if logo_path.exists():
    pix=QPixmap(str(logo_path))
    if not pix.isNull():logo.setPixmap(pix.scaled(54,54,Qt.KeepAspectRatio,Qt.SmoothTransformation))
@@ -323,11 +329,14 @@ class Main(QMainWindow):
   self.busy=True;self.scan_btn.setEnabled(False);self.progress.show();self.progress.setRange(0,0);self.status.setText("Prüfung läuft…")
   self.thread=QThread(self);self.worker=ScanWorker(self.c);self.worker.moveToThread(self.thread);self.thread.started.connect(self.worker.run);self.worker.done.connect(self.finished);self.worker.done.connect(self.thread.quit);self.worker.done.connect(self.worker.deleteLater);self.thread.finished.connect(self.thread.deleteLater);self.thread.start()
  def finished(self,rows):
-  self.rows=rows;self.busy=False;logger.info("Scan abgeschlossen: %d Dateien",len(rows));self.scan_btn.setEnabled(True);self.progress.hide();self.next=time.monotonic()+self.c["interval_minutes"]*60
+  self.rows=rows;self.busy=False
+  counts={risk:sum(1 for item in rows if item.get("risk")==risk) for risk in ("Critical","Review","Low","Quarantined","Info")}
+  logger.info("SCAN ABGESCHLOSSEN | Dateien=%d | Critical=%d | Review=%d | Low=%d | Quarantined=%d | Info=%d",len(rows),counts["Critical"],counts["Review"],counts["Low"],counts["Quarantined"],counts["Info"])
+  self.scan_btn.setEnabled(True);self.progress.hide();self.next=time.monotonic()+self.c["interval_minutes"]*60
   flagged=[x for x in rows if x.get("risk") in ("Critical","Review","Quarantined")];self.files.value.setText(str(len(rows)));self.flags.value.setText(str(len(flagged)));self.status.setText(f"Scan beendet · {len(rows)} Dateien · {len(flagged)} Hinweise")
   self.table.setRowCount(len(rows))
   for i,r in enumerate(rows):
-   logger.info("Ergebnis %s | %s | %s",r.get("risk"),r.get("path"),"; ".join(r.get("reasons",[])))
+   logger.info("SCANERGEBNIS | Risiko=%s | Datei=%s | SHA256=%s | Hinweise=%s",r.get("risk"),r.get("path"),r.get("sha256",""),"; ".join(r.get("reasons",[])) or "Keine")
    values=[r.get("risk","?"),r.get("quarantined_path") or r.get("path",""),r.get("sha256","—"),"; ".join(r.get("reasons",[])) or "Keine Auffälligkeiten"]
    for j,v in enumerate(values):
     item=QTableWidgetItem(str(v));item.setToolTip(str(v))
@@ -343,6 +352,7 @@ class Main(QMainWindow):
   src=Path(r["path"])
   if QMessageBox.question(self,"Datei isolieren",f"Datei wird verschoben, nicht gelöscht.\n\n{src}\n\nWeiter?")!=QMessageBox.Yes:return
   try:
+   logger.warning("QUARANTÄNE ANGEFORDERT | Quelle=%s | Risiko=%s",src,r.get("risk"))
    QUARANTINE.mkdir(parents=True,exist_ok=True);target=QUARANTINE/(src.name+"_"+r.get("sha256","")[:12]+".quarantined")
    shutil.move(str(src),str(target));logger.warning("Datei isoliert: %s -> %s",src,target);metadata={"source":str(src),"target":str(target),"sha256":r.get("sha256"),"risk":r.get("risk"),"reasons":r.get("reasons"),"date":datetime.now().isoformat()}
    target.with_suffix(target.suffix+".json").write_text(json.dumps(metadata,indent=2,ensure_ascii=False),encoding="utf-8");QMessageBox.information(self,"SSS","Datei in Quarantäne verschoben.");self.scan()
@@ -395,11 +405,20 @@ class Main(QMainWindow):
   if not result.get("update_available"):
    QMessageBox.information(self,"SSS Update",f"SSS ist aktuell. Installierte Version: {VERSION}");return
   latest=result.get("latest","?")
-  QMessageBox.information(self,"SSS-Update",f"SSS {latest} ist verfügbar (installiert: {VERSION}).\n\n{result.get('notes','')}\n\nDas Update wird jetzt heruntergeladen und nach dem Schließen installiert.")
+  logger.info("Update verfügbar: installiert=%s, verfügbar=%s",VERSION,latest)
+  answer=QMessageBox.question(self,"SSS-Update",f"SSS {latest} ist verfügbar (installiert: {VERSION}).\n\n{result.get('notes','')}\n\nSoll das Update jetzt heruntergeladen und nach dem Schließen installiert werden?",QMessageBox.Yes|QMessageBox.No,QMessageBox.No)
+  if answer!=QMessageBox.Yes:
+   logger.info("Updateinstallation vom Benutzer abgelehnt: %s",latest)
+   self.status.setText("Update verfügbar · Installation nicht bestätigt")
+   return
+  logger.info("Updateinstallation vom Benutzer ausdrücklich bestätigt: %s",latest)
   download=install_update()
   if download.get("ok"):
+   logger.info("Updater gestartet: %s",download.get("message",""))
    QMessageBox.information(self,"Updater",download.get("message","Update wird vorbereitet."));self.close()
-  else:QMessageBox.critical(self,"Update fehlgeschlagen",download.get("error","Update fehlgeschlagen"))
+  else:
+   logger.error("Update fehlgeschlagen: %s",download.get("error","Unbekannter Fehler"))
+   QMessageBox.critical(self,"Update fehlgeschlagen",download.get("error","Update fehlgeschlagen"))
  def ai_setup(self):
   d=QDialog(self);d.setWindowTitle("SSS · KI verbinden");d.resize(580,460);layout=QVBoxLayout(d);layout.setSpacing(12)
   title=QLabel("Lokale KI mit Ollama");title.setStyleSheet("font-size:21px;font-weight:800");layout.addWidget(title)
@@ -518,15 +537,12 @@ if __name__=="__main__":
  if bootstrap_install():sys.exit(0)
  if os.name=="nt":
   try:register_windows_app()
-  except Exception:logging.exception("Windows-Registrierung fehlgeschlagen")
+  except Exception:logger.exception("Windows-Registrierung fehlgeschlagen")
+  try:
+   import ctypes;ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("KrausDevelopmentSystems.SchoolServerSecurity")
+  except Exception:logger.exception("Windows-Taskleistenkennung konnte nicht gesetzt werden")
  app=QApplication(sys.argv);app.setApplicationName(APP_NAME);app.setFont(QFont("Segoe UI",10))
- icon_path=Path(__file__).resolve().parent/"SSS_Data"/"assets"/"Sicherheits-Schild mit Servern und Schloss.png"
- if icon_path.exists():
-  app_icon=QIcon(str(icon_path));app.setWindowIcon(app_icon)
-  if os.name=="nt":
-   try:
-    import ctypes;ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("KrausDevelopmentSystems.SchoolServerSecurity")
-   except Exception:logger.exception("Windows-Taskleistenkennung konnte nicht gesetzt werden")
+ if APP_ICON.is_file():app.setWindowIcon(QIcon(str(APP_ICON)))
  w=Main();w.show()
  cfg=load_cfg()
  if cfg.get("autostart",True) and not autostart_enabled():set_autostart(True)
