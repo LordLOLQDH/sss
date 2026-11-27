@@ -17,7 +17,7 @@ STARTUP_DIR=Path(os.environ.get("APPDATA",str(Path.home()))) / "Microsoft" / "Wi
 PROGRAMS_DIR=Path(os.environ.get("APPDATA",str(Path.home()))) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
 DATA_DIR=Path(os.environ.get("LOCALAPPDATA",str(Path.home())))/"SchoolServer Security"
 QUARANTINE=DATA_DIR/"Quarantine"
-VERSION="2.4.6"
+VERSION="2.4.7"
 DEFAULT_MODEL="qwen2.5:3b"
 SCRIPT_EXT={".ps1",".bat",".cmd",".vbs",".js",".py",".hta",".scr",".jse",".vbe"}
 HASH_EXT=SCRIPT_EXT|{".exe",".dll",".sys",".com",".msi"}
@@ -356,9 +356,9 @@ class Main(QMainWindow):
 
   l.addLayout(intro)
   cards=QHBoxLayout();self.files=self.card("Geprüfte Dateien","—");self.flags=self.card("Auffälligkeiten","—");self.countdown=self.card("Nächste Prüfung","—");self.ai_card=self.card("Lokale KI","Status");[cards.addWidget(x) for x in [self.files,self.flags,self.countdown,self.ai_card]];l.addLayout(cards)
-  bar=QHBoxLayout();bar.addWidget(QLabel("Prüfergebnisse"));bar.addStretch();self.status=QLabel("Bereit");self.status.setStyleSheet("color:#718078");bar.addWidget(self.status);self.quarantine_btn=QPushButton("In Quarantäne verschieben");self.quarantine_btn.clicked.connect(self.quarantine);bar.addWidget(self.quarantine_btn);self.manage_quarantine_btn=QPushButton("Quarantäne verwalten");self.manage_quarantine_btn.clicked.connect(self.manage_quarantine);bar.addWidget(self.manage_quarantine_btn);self.ai_btn=QPushButton("KI-Erklärung");self.ai_btn.clicked.connect(self.explain);bar.addWidget(self.ai_btn);l.addLayout(bar)
+  bar=QHBoxLayout();bar.addWidget(QLabel("Prüfergebnisse"));bar.addStretch();self.status=QLabel("Bereit");self.status.setStyleSheet("color:#718078");bar.addWidget(self.status);self.quarantine_btn=QPushButton("Ausgewählte in Quarantäne");self.quarantine_btn.clicked.connect(self.quarantine);bar.addWidget(self.quarantine_btn);self.manage_quarantine_btn=QPushButton("Quarantäne verwalten");self.manage_quarantine_btn.clicked.connect(self.manage_quarantine);bar.addWidget(self.manage_quarantine_btn);self.ai_btn=QPushButton("KI-Erklärung");self.ai_btn.clicked.connect(self.explain);bar.addWidget(self.ai_btn);l.addLayout(bar)
   self.progress=QProgressBar();self.progress.setTextVisible(False);self.progress.setFixedHeight(5);self.progress.hide();l.addWidget(self.progress)
-  self.table=QTableWidget(0,4);self.table.setHorizontalHeaderLabels(["RISIKO","DATEIPFAD","SHA-256","PRÜFHINWEISE"]);self.table.horizontalHeader().setSectionResizeMode(0,QHeaderView.ResizeToContents);self.table.horizontalHeader().setSectionResizeMode(1,QHeaderView.Stretch);self.table.horizontalHeader().setSectionResizeMode(2,QHeaderView.ResizeToContents);self.table.horizontalHeader().setSectionResizeMode(3,QHeaderView.Stretch);self.table.verticalHeader().hide();self.table.setSelectionBehavior(QAbstractItemView.SelectRows);self.table.setEditTriggers(QAbstractItemView.NoEditTriggers);l.addWidget(self.table,1)
+  self.table=QTableWidget(0,4);self.table.setHorizontalHeaderLabels(["RISIKO","DATEIPFAD","SHA-256","PRÜFHINWEISE"]);self.table.horizontalHeader().setSectionResizeMode(0,QHeaderView.ResizeToContents);self.table.horizontalHeader().setSectionResizeMode(1,QHeaderView.Stretch);self.table.horizontalHeader().setSectionResizeMode(2,QHeaderView.ResizeToContents);self.table.horizontalHeader().setSectionResizeMode(3,QHeaderView.Stretch);self.table.verticalHeader().hide();self.table.setSelectionBehavior(QAbstractItemView.SelectRows);self.table.setSelectionMode(QAbstractItemView.ExtendedSelection);self.table.setEditTriggers(QAbstractItemView.NoEditTriggers);l.addWidget(self.table,1)
   foot=QLabel("Hinweis: SSS ist ein Sicherheitsassistenz-Prototyp und kein zertifizierter Virenschutz. Keine Datei wird ausgeführt.");foot.setStyleSheet("color:#718078;font-size:11px");l.addWidget(foot)
  def card(self,name,value):
   f=QFrame();f.setObjectName("card");f.setMinimumHeight(88);x=QVBoxLayout(f);x.setContentsMargins(15,12,15,12);a=QLabel(name);a.setStyleSheet("color:#718078");b=QLabel(value);b.setStyleSheet("font-size:22px;font-weight:800");x.addWidget(a);x.addWidget(b);f.value=b;return f
@@ -389,50 +389,100 @@ class Main(QMainWindow):
   i=self.table.currentRow()
   return self.rows[i] if 0<=i<len(self.rows) else None
  def quarantine(self):
-  r=self.selected()
-  if not r:QMessageBox.information(self,"SSS","Bitte Datei auswählen.");return
-  if r.get("risk") not in ("Critical","Review"):QMessageBox.warning(self,"SSS","Nur auffällige Dateien können isoliert werden.");return
-  src=Path(r["path"])
-  if QMessageBox.question(self,"Datei isolieren",f"Datei wird verschoben, nicht gelöscht.\n\n{src}\n\nWeiter?")!=QMessageBox.Yes:return
-  try:
-   logger.warning("QUARANTÄNE ANGEFORDERT | Quelle=%s | Risiko=%s",src,r.get("risk"))
-   QUARANTINE.mkdir(parents=True,exist_ok=True);target=QUARANTINE/(src.name+"_"+r.get("sha256","")[:12]+".quarantined")
-   shutil.move(str(src),str(target));logger.warning("Datei isoliert: %s -> %s",src,target);metadata={"source":str(src),"target":str(target),"sha256":r.get("sha256"),"risk":r.get("risk"),"reasons":r.get("reasons"),"date":datetime.now().isoformat()}
-   target.with_suffix(target.suffix+".json").write_text(json.dumps(metadata,indent=2,ensure_ascii=False),encoding="utf-8");QMessageBox.information(self,"SSS","Datei in Quarantäne verschoben.");self.scan()
-  except Exception as e:QMessageBox.critical(self,"Fehler",str(e))
+  selected=sorted({index.row() for index in self.table.selectionModel().selectedRows()})
+  if not selected:
+   QMessageBox.information(self,"SSS","Bitte eine oder mehrere Dateien auswählen.");return
+  candidates=[self.rows[i] for i in selected if 0<=i<len(self.rows) and self.rows[i].get("risk") in ("Critical","Review") and self.rows[i].get("path")]
+  skipped=len(selected)-len(candidates)
+  if not candidates:
+   QMessageBox.warning(self,"SSS","Unter der Auswahl befindet sich keine Datei mit dem Status „Critical“ oder „Review“.");return
+  names="\n".join("• "+str(Path(r["path"])) for r in candidates[:12])
+  if len(candidates)>12:names+=f"\n… und {len(candidates)-12} weitere Dateien"
+  prompt=f"{len(candidates)} Datei(en) werden in die Quarantäne verschoben, nicht gelöscht."
+  if skipped:prompt+=f"\n{skipped} nicht geeignete Auswahl(en) werden übersprungen."
+  prompt+="\n\n"+names+"\n\nFortfahren?"
+  if QMessageBox.question(self,"Mehrere Dateien isolieren",prompt,QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:return
+  moved=0;errors=[]
+  QUARANTINE.mkdir(parents=True,exist_ok=True)
+  for r in candidates:
+   src=Path(r["path"])
+   try:
+    if not src.is_file():raise RuntimeError("Quelldatei nicht mehr vorhanden.")
+    digest=r.get("sha256") or sha256(src)
+    target=QUARANTINE/(src.name+"_"+digest[:12]+".quarantined")
+    counter=1
+    while target.exists():
+     target=QUARANTINE/(src.name+"_"+digest[:12]+"_"+str(counter)+".quarantined");counter+=1
+    metadata={"source":str(src),"target":str(target),"sha256":digest,"risk":r.get("risk"),"reasons":r.get("reasons",[]),"date":datetime.now().isoformat(),"automatic":False}
+    shutil.move(str(src),str(target))
+    target.with_suffix(target.suffix+".json").write_text(json.dumps(metadata,indent=2,ensure_ascii=False),encoding="utf-8")
+    moved+=1;logger.warning("MANUELLE QUARANTÄNE | Quelle=%s | Ziel=%s | Risiko=%s",src,target,r.get("risk"))
+   except Exception as exc:
+    errors.append(f"{src}: {exc}");logger.exception("Manuelle Quarantäne fehlgeschlagen: %s",src)
+  summary=f"{moved} von {len(candidates)} Datei(en) wurden in die Quarantäne verschoben."
+  if errors:summary+="\n\nFehler:\n"+"\n".join(errors[:8])
+  if skipped:summary+=f"\n{skipped} Eintrag/Einträge wurden übersprungen."
+  if moved:self.scan()
+  (QMessageBox.warning if errors else QMessageBox.information)(self,"Quarantäne",summary)
  def manage_quarantine(self):
   QUARANTINE.mkdir(parents=True,exist_ok=True)
-  d=QDialog(self);d.setWindowTitle("SSS · Quarantäne");d.resize(760,440);layout=QVBoxLayout(d);path_label=QLabel("Quarantäne-Ordner: "+str(QUARANTINE));path_label.setWordWrap(True);path_label.setTextInteractionFlags(Qt.TextSelectableByMouse);layout.addWidget(path_label);open_folder=QPushButton("Ordner im Explorer öffnen");open_folder.clicked.connect(lambda:QDesktopServices.openUrl(QUrl.fromLocalFile(str(QUARANTINE))));layout.addWidget(open_folder)
-  t=QTableWidget(0,3);t.setHorizontalHeaderLabels(["DATEI","RISIKO","ORIGINALPFAD"]);t.horizontalHeader().setSectionResizeMode(0,QHeaderView.ResizeToContents);t.horizontalHeader().setSectionResizeMode(1,QHeaderView.ResizeToContents);t.horizontalHeader().setSectionResizeMode(2,QHeaderView.Stretch);t.setSelectionBehavior(QAbstractItemView.SelectRows);t.setEditTriggers(QAbstractItemView.NoEditTriggers);t.verticalHeader().hide()
+  d=QDialog(self);d.setWindowTitle("SSS · Quarantäne");d.resize(900,520);layout=QVBoxLayout(d)
+  path_label=QLabel("Quarantäne-Ordner: "+str(QUARANTINE));path_label.setWordWrap(True);path_label.setTextInteractionFlags(Qt.TextSelectableByMouse);layout.addWidget(path_label)
+  open_folder=QPushButton("Ordner im Explorer öffnen");open_folder.clicked.connect(lambda:QDesktopServices.openUrl(QUrl.fromLocalFile(str(QUARANTINE))));layout.addWidget(open_folder)
+  t=QTableWidget(0,3);t.setHorizontalHeaderLabels(["DATEI","RISIKO","ORIGINALPFAD"]);t.horizontalHeader().setSectionResizeMode(0,QHeaderView.ResizeToContents);t.horizontalHeader().setSectionResizeMode(1,QHeaderView.ResizeToContents);t.horizontalHeader().setSectionResizeMode(2,QHeaderView.Stretch);t.setSelectionBehavior(QAbstractItemView.SelectRows);t.setSelectionMode(QAbstractItemView.ExtendedSelection);t.setEditTriggers(QAbstractItemView.NoEditTriggers);t.verticalHeader().hide()
   entries=[]
-  for f in QUARANTINE.glob("*.quarantined"):
+  for f in sorted(QUARANTINE.glob("*.quarantined")):
    meta=f.with_suffix(f.suffix+".json")
    try:m=json.loads(meta.read_text(encoding="utf-8"))
-   except: m={}
+   except Exception:m={}
    entries.append((f,m))
   t.setRowCount(len(entries))
   for i,(f,m) in enumerate(entries):
-   for j,v in enumerate([f.name,m.get("risk","?"),m.get("source","metadata missing")]):t.setItem(i,j,QTableWidgetItem(str(v)))
+   for j,v in enumerate([f.name,m.get("risk","?"),m.get("source","Metadaten fehlen")]):
+    item=QTableWidgetItem(str(v));item.setToolTip(str(v));t.setItem(i,j,item)
   layout.addWidget(t)
-  actions=QHBoxLayout();restore=QPushButton("Ausgewählte Datei wiederherstellen");close=QPushButton("Schließen");actions.addWidget(restore);actions.addStretch();actions.addWidget(close);layout.addLayout(actions);close.clicked.connect(d.accept)
+  hint=QLabel("Mehrfachauswahl: Strg für einzelne Einträge, Shift für einen Bereich.");hint.setStyleSheet("color:#718078");layout.addWidget(hint)
+  actions=QHBoxLayout();restore=QPushButton("Ausgewählte wiederherstellen");close=QPushButton("Schließen");actions.addWidget(restore);actions.addStretch();actions.addWidget(close);layout.addLayout(actions);close.clicked.connect(d.accept)
   def do_restore():
-   row=t.currentRow()
-   if row<0:QMessageBox.information(d,"Quarantäne","Eintrag auswählen.");return
-   qfile,meta=entries[row];original=Path(meta.get("source",""))
-   if not original.is_absolute():QMessageBox.critical(d,"Restore blockiert","Ursprungspfad fehlt in den Metadaten.");return
-   if original.exists():QMessageBox.warning(d,"Restore blockiert","Am ursprünglichen Speicherort existiert bereits eine Datei. Sie wird nicht überschrieben.");return
-   if QMessageBox.question(d,"Wiederherstellen",f"Datei an den ursprünglichen Ort zurückverschieben?\n\n{original}")!=QMessageBox.Yes:return
-   try:
-    original.parent.mkdir(parents=True,exist_ok=True);shutil.move(str(qfile),str(original))
-    restored_hash=sha256(original)
-    if meta.get("sha256") and restored_hash!=meta["sha256"]:
-     shutil.move(str(original),str(qfile));QMessageBox.critical(d,"Hashprüfung fehlgeschlagen","Datei wurde zurück in Quarantäne verschoben.");return
-    approved=load_restored_files()
-    approved[str(original.resolve())]=restored_hash
-    save_restored_files(approved)
-    logger.info("DATEI WIEDERHERGESTELLT UND FREIGEGEBEN | %s | SHA-256=%s",original,restored_hash)
-    qfile.with_suffix(qfile.suffix+".json").unlink(missing_ok=True);QMessageBox.information(d,"SSS","Datei wiederhergestellt und für künftige Prüfungen freigegeben.");d.accept()
-   except Exception as e:QMessageBox.critical(d,"Restore fehlgeschlagen",str(e))
+   selected=sorted({index.row() for index in t.selectionModel().selectedRows()})
+   if not selected:
+    QMessageBox.information(d,"Quarantäne","Bitte eine oder mehrere Dateien auswählen.");return
+   candidates=[entries[i] for i in selected if 0<=i<len(entries)]
+   preview=[]
+   for qfile,meta in candidates[:10]:
+    original=Path(meta.get("source",""))
+    preview.append(f"{qfile.name} → {original if original.is_absolute() else 'Ursprungspfad fehlt'}")
+   if len(candidates)>10:preview.append(f"… und {len(candidates)-10} weitere Dateien")
+   if QMessageBox.question(d,"Mehrere Dateien wiederherstellen",f"{len(candidates)} Datei(en) werden an ihren ursprünglichen Speicherort zurückverschoben. Vorhandene Dateien werden nicht überschrieben.\n\n" + "\n".join(preview) + "\n\nFortfahren?",QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:return
+   restored=load_restored_files();success=0;errors=[];conflicts=0
+   for qfile,meta in candidates:
+    original=Path(meta.get("source",""))
+    try:
+     if not original.is_absolute():raise RuntimeError("Ursprungspfad fehlt in den Metadaten.")
+     if not qfile.is_file():raise RuntimeError("Quarantänedatei nicht mehr vorhanden.")
+     if original.exists():
+      conflicts+=1;raise RuntimeError("Am ursprünglichen Speicherort existiert bereits eine Datei. Sie wurde nicht überschrieben.")
+     original.parent.mkdir(parents=True,exist_ok=True)
+     shutil.move(str(qfile),str(original))
+     restored_hash=sha256(original)
+     if meta.get("sha256") and restored_hash!=meta["sha256"]:
+      shutil.move(str(original),str(qfile))
+      raise RuntimeError("SHA-256-Prüfung fehlgeschlagen. Datei blieb in Quarantäne.")
+     restored[str(original.resolve())]=restored_hash
+     qfile.with_suffix(qfile.suffix+".json").unlink(missing_ok=True)
+     success+=1
+     logger.info("DATEI WIEDERHERGESTELLT UND FREIGEGEBEN | %s | SHA-256=%s",original,restored_hash)
+    except Exception as exc:
+     errors.append(f"{qfile.name}: {exc}");logger.warning("Wiederherstellung fehlgeschlagen | %s | %s",qfile,exc)
+   try:save_restored_files(restored)
+   except Exception as exc:errors.append("Freigabeliste konnte nicht gespeichert werden: "+str(exc))
+   summary=f"{success} von {len(candidates)} Datei(en) erfolgreich wiederhergestellt und freigegeben."
+   if conflicts:summary+=f"\n{conflicts} Speicherort-Konflikt(e)."
+   if errors:summary+="\n\nNicht wiederhergestellt:\n"+"\n".join(errors[:10])
+   (QMessageBox.warning if errors else QMessageBox.information)(d,"Wiederherstellung",summary)
+   if success:
+    d.accept()
+    self.scan()
   restore.clicked.connect(do_restore);d.exec()
  def explain(self):
   r=self.selected()
