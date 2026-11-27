@@ -263,7 +263,7 @@ def install_update():
   script+="try {\nLog 'Updater gestartet; warte auf das Ende von SSS.'\n$pidToWait="+str(os.getpid())+"\n$deadline=(Get-Date).AddSeconds(90)\nwhile(Get-Process -Id $pidToWait -ErrorAction SilentlyContinue){if((Get-Date) -gt $deadline){throw 'SSS wurde nicht innerhalb von 90 Sekunden beendet.'};Start-Sleep -Milliseconds 500}\n"
   script+="$root="+quote(ROOT)+"\n$source="+quote(extract)+"\n$mainTarget=Join-Path $root 'sss_main.py'\n$backup=Join-Path $root 'sss_main.py.previous'\nif(Test-Path $mainTarget){Copy-Item -LiteralPath $mainTarget -Destination $backup -Force}\nCopy-Item -LiteralPath (Join-Path $source 'sss_main.py') -Destination ($mainTarget+'.new') -Force\nMove-Item -LiteralPath ($mainTarget+'.new') -Destination $mainTarget -Force\nLog 'Hauptprogramm aktualisiert.'\n"
   script+="$sourceData=Join-Path $source 'SSS_Data'\n$targetData=Join-Path $root 'SSS_Data'\nNew-Item -ItemType Directory -Force -Path $targetData | Out-Null\nforeach($name in @('assets','modules','tools')){$from=Join-Path $sourceData $name;if(Test-Path $from){$to=Join-Path $targetData $name;New-Item -ItemType Directory -Force -Path $to | Out-Null;Get-ChildItem -LiteralPath $from -Recurse -File | ForEach-Object {$relative=$_.FullName.Substring($from.Length).TrimStart('\\');$dest=Join-Path $to $relative;$parent=Split-Path -Parent $dest;New-Item -ItemType Directory -Force -Path $parent | Out-Null;Copy-Item -LiteralPath $_.FullName -Destination $dest -Force}}}\nCopy-Item -LiteralPath (Join-Path $sourceData 'version.json') -Destination (Join-Path $targetData 'version.json') -Force\nLog 'Programmdateien aktualisiert; Einstellungen, Logs und Quarantäne wurden beibehalten.'\n"
-  script+="$python="+quote(_python_gui())+"\n$app=Join-Path $root 'sss_main.py'\n$proc=Start-Process -FilePath $python -ArgumentList ('\\"'+$app+'\\"') -WorkingDirectory $root -PassThru\nStart-Sleep -Seconds 2\nif(-not (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue)){throw 'Der neue SSS-Prozess wurde gestartet, ist aber sofort wieder beendet worden.'}\nLog ('Neustart erfolgreich; PID='+$proc.Id)\n} catch {Log ('FEHLER: '+$_.Exception.Message);exit 1}\n";
+  script+="$python="+quote(_python_gui())+"\n$app=Join-Path $root 'sss_main.py'\n$proc=Start-Process -FilePath $python -ArgumentList ('\"'+$app+'\"') -WorkingDirectory $root -PassThru\nStart-Sleep -Seconds 2\nif(-not (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue)){throw 'Der neue SSS-Prozess wurde gestartet, ist aber sofort wieder beendet worden.'}\nLog ('Neustart erfolgreich; PID='+$proc.Id)\n} catch {Log ('FEHLER: '+$_.Exception.Message);exit 1}\n";
   ps.write_text(script,encoding="utf-8")
   subprocess.Popen(["powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-WindowStyle","Hidden","-File",str(ps)],creationflags=getattr(subprocess,"CREATE_NEW_PROCESS_GROUP",0x200),close_fds=True)
   logger.info("Updater-Prozess gestartet; Logdatei: %s",log_path)
@@ -411,7 +411,7 @@ class Main(QMainWindow):
   download=install_update()
   if download.get("ok"):
    logger.info("Updater gestartet: %s",download.get("message",""))
-   QMessageBox.information(self,"Updater",download.get("message","Update wird vorbereitet."));self.close()
+   QMessageBox.information(self,"Updater",download.get("message","Update wird vorbereitet."));self.close();QTimer.singleShot(500,QApplication.quit)
   else:
    logger.error("Update fehlgeschlagen: %s",download.get("error","Unbekannter Fehler"))
    QMessageBox.critical(self,"Update fehlgeschlagen",download.get("error","Update fehlgeschlagen"))
