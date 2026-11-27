@@ -15,6 +15,6 @@ jobs:
         with:
           python-version: "3.11"
       - name: Validate Python syntax
-        run: python -m py_compile sss_gui.py sss_core.py sss_ai.py sss_updater.py sss_setup.py
-      - name: Validate updater imports
-        run: python -c "import sss_updater, sss_ai, sss_core; print('SSS source validation OK')"
+        run: python -m py_compile sss_main.py
+      - name: Validate app metadata
+        run: python -c "import json; json.load(open('SSS_Data/version.json', encoding='utf-8')); print('SSS source validation OK')"
