@@ -170,7 +170,7 @@ class ScanWorker(QObject):
     st=p.stat();key=str(p.resolve());signature=[st.st_size,st.st_mtime_ns]
     previous=cache.get(key,{})
     if previous.get("signature")==signature and isinstance(previous.get("result"),dict):
-     result=dict(previous["result"]);result["elapsed"]=0.0;result["cached"]=True
+     result=dict(previous["result"]);result["elapsed"]=0.0;result["cached"]=True;next_cache[key]=previous
     else:
      result=inspect(p,int(self.c["max_file_mb"]))
      if "sha256" in result:next_cache[key]={"signature":signature,"result":result}
@@ -178,7 +178,7 @@ class ScanWorker(QObject):
     result=inspect(p,int(self.c["max_file_mb"]))
    if p.suffix.lower() in rules:
     result=quarantine_file(result,"Dateiendungs-Regel "+p.suffix.lower())
-   elif self.c.get("ai_enabled",True) and self.c.get("ai_auto_quarantine",False) and result.get("risk") in ("Critical","Review"):
+   elif not result.get("cached") and self.c.get("ai_enabled",True) and self.c.get("ai_auto_quarantine",False) and result.get("risk") in ("Critical","Review"):
     assessment=ai_assess(result,self.c.get("ai_model",DEFAULT_MODEL));result["ai_assessment"]=assessment
     threshold=int(self.c.get("ai_quarantine_threshold",95))
     if assessment.get("ok") and assessment.get("threat") and assessment.get("severity") in ("high","critical") and assessment.get("confidence",0)>=threshold:
