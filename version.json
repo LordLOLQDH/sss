@@ -1,6 +1,6 @@
 {
   "name": "SchoolServer Security",
-  "version": "2.4.4",
+  "version": "2.4.5",
   "channel": "stable",
-  "notes": "SSS 2.4.4: Deutlich schnellere Dateiprüfung durch Metadaten-Cache und Wegfall einzelner ClamAV-Prozessstarts. Unveränderte Dateien werden bei Folgescans aus dem Cache geladen."
+  "notes": "SSS 2.4.5: Reparatur der Quarantäne-Erstellung, stabilisierter Manager mit neuem grünem Design, Manager-Verknüpfung im Startmenü und verbesserte Reparatur-/Updateabläufe."
 }
