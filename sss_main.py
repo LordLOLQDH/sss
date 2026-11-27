@@ -323,21 +323,22 @@ def install_update():
   logger.exception("Updater konnte nicht gestartet werden")
   return {"ok":False,"error":"Update fehlgeschlagen: "+str(e)}
 def uninstall_sss(parent):
- answer=QMessageBox.warning(parent,"SSS vollständig entfernen","SSS, Einstellungen, Protokolle, Quarantäne, Installationsordner sowie Startmenü- und Autostart-Einträge werden entfernt. Eine separat installierte Ollama-Version bleibt unangetastet. Auf dem Desktop bleibt nur eine Abschieds-Logdatei zurück. Dieser Vorgang kann nicht rückgängig gemacht werden. Wirklich entfernen?",QMessageBox.Yes|QMessageBox.No,QMessageBox.No)
+ answer=QMessageBox.warning(parent,"SSS vollständig entfernen","SSS wird restlos entfernt: Programmdateien, sämtliche Einstellungen, Logs, Cache, Quarantäne, Freigabelisten, temporäre Update-Dateien, Startmenü- und Autostart-Verknüpfungen sowie Windows-Registrierung. Es bleibt keine Abschiedsdatei zurück. Eine separat installierte Ollama-Version wird nicht verändert. Dieser Vorgang kann nicht rückgängig gemacht werden. Wirklich ALLES von SSS löschen?",QMessageBox.Yes|QMessageBox.No,QMessageBox.No)
  if answer!=QMessageBox.Yes:return
- desktop=Path(os.environ.get("USERPROFILE",str(Path.home())))/"Desktop"
- farewell=desktop/"SchoolServer Security - Abschied.log"
- farewell.write_text("SchoolServer Security wurde entfernt.\n\nDanke, dass du SSS verwendet hast. Wir hoffen, dass es dir gute Dienste geleistet hat.\n\nAlle zu SSS gehörenden lokalen Einstellungen, Protokolle und Quarantänedaten wurden entfernt.\n",encoding="utf-8")
- try:
-  (STARTUP_DIR/"SchoolServer Security.lnk").unlink(missing_ok=True)
-  (PROGRAMS_DIR/"SchoolServer Security.lnk").unlink(missing_ok=True)
-  import winreg
-  winreg.DeleteKey(winreg.HKEY_CURRENT_USER,r"Software\Microsoft\Windows\CurrentVersion\Uninstall\SchoolServerSecurity")
- except Exception:pass
  cleanup=Path(os.environ.get("TEMP",str(Path.home())))/"sss_remove_after_exit.ps1"
  q=lambda x:"'"+str(x).replace("'","''")+"'"
- script="$ErrorActionPreference='SilentlyContinue'\n$waitFor="+str(os.getpid())+"\nwhile(Get-Process -Id $waitFor -ErrorAction SilentlyContinue){Start-Sleep -Milliseconds 500}\n"
- script+="Remove-Item -LiteralPath "+q(DATA_DIR)+" -Recurse -Force\nRemove-Item -LiteralPath "+q(ROOT)+" -Recurse -Force\nGet-ChildItem -LiteralPath $env:TEMP -Directory -Filter 'sss_update_*' | Remove-Item -Recurse -Force\nRemove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force\n"
+ roaming=Path(os.environ.get("APPDATA",str(Path.home())))/APP_NAME
+ paths=[DATA_DIR,ROOT,APP_DIR,roaming,STARTUP_DIR/"SchoolServer Security.lnk",PROGRAMS_DIR/"SchoolServer Security.lnk",PROGRAMS_DIR/"SchoolServer Security Manager.lnk",Path(os.environ.get("USERPROFILE",str(Path.home())))/"Desktop"/"SchoolServer Security - Abschied.log"]
+ unique=[]
+ for path in paths:
+  value=str(path)
+  if value not in unique:unique.append(value)
+ script="$ErrorActionPreference='SilentlyContinue'\n$ProgressPreference='SilentlyContinue'\n$waitFor="+str(os.getpid())+"\nwhile(Get-Process -Id $waitFor -ErrorAction SilentlyContinue){Start-Sleep -Milliseconds 400}\n"
+ for path in unique:
+  script+="if(Test-Path -LiteralPath "+q(path)+"){Remove-Item -LiteralPath "+q(path)+" -Recurse -Force}\n"
+ script+="$registryPaths=@('HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\SchoolServerSecurity','HKCU:\Software\SchoolServer Security')\nforeach($key in $registryPaths){if(Test-Path $key){Remove-Item -LiteralPath $key -Recurse -Force}}\n"
+ script+="$tempRoot=$env:TEMP\nif($tempRoot){Get-ChildItem -LiteralPath $tempRoot -Directory -Filter 'sss_update_*' -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force}\n"
+ script+="Remove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force\n"
  cleanup.write_text(script,encoding="utf-8")
  subprocess.Popen(["powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File",str(cleanup)],creationflags=getattr(subprocess,"CREATE_NEW_PROCESS_GROUP",0x200),close_fds=True)
  QApplication.quit()
