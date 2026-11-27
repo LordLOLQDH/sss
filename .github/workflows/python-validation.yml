@@ -1,9 +1,11 @@
-name: Python validation
+name: Python validation and source package
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+permissions:
+  contents: write
 jobs:
   syntax:
     runs-on: windows-latest
@@ -16,3 +18,15 @@ jobs:
         run: python -m py_compile sss_main.py
       - name: Validate metadata
         run: python -c "import json; json.load(open('SSS_Data/version.json', encoding='utf-8')); json.load(open('version.json', encoding='utf-8'))"
+      - name: Package clean Python app
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: Compress-Archive -Path sss_main.py, SSS_Data -DestinationPath SSS-Windows-Python.zip -Force
+      - name: Publish Python-only package
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: SSS Windows · Python-Version
+          prerelease: true
+          files: SSS-Windows-Python.zip
+          overwrite_files: true
