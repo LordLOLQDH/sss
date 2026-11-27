@@ -209,7 +209,7 @@ def install_update():
   script="$ErrorActionPreference='Stop'\n$pidToWait="+str(os.getpid())+"\nwhile(Get-Process -Id $pidToWait -ErrorAction SilentlyContinue){Start-Sleep -Milliseconds 700}\n"
   script+="Copy-Item -LiteralPath "+quote(extract/"sss_main.py")+" -Destination "+quote(ROOT/"sss_main.py")+" -Force\n"
   script+="$srcData = "+quote(extract/"SSS_Data")+"\n$dstData = "+quote(ROOT/"SSS_Data")+"\nif(!(Test-Path $dstData)){New-Item -ItemType Directory -Force -Path $dstData | Out-Null}\nCopy-Item -Path (Join-Path $srcData '*') -Destination $dstData -Recurse -Force\n"
-  script+="Start-Process -FilePath "+quote(_python_gui())+" -ArgumentList "+quote(ROOT/"sss_main.py")+" -WorkingDirectory "+quote(ROOT)+"\n"
+  script+="Start-Process -FilePath "+quote(_python_gui())+" -ArgumentList "+quote(ROOT/"sss_main.py")+" -WorkingDirectory "+quote(ROOT)+"\nRemove-Item -LiteralPath "+quote(stage)+" -Recurse -Force\n"
   ps.write_text(script,encoding="utf-8")
   subprocess.Popen(["powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File",str(ps)],creationflags=getattr(subprocess,"CREATE_NEW_PROCESS_GROUP",0x200),close_fds=True)
   return {"ok":True,"message":"Update vorbereitet. Nach dem Schließen wird die neue Version installiert und SSS neu gestartet."}
@@ -229,7 +229,7 @@ def uninstall_sss(parent):
  cleanup=Path(os.environ.get("TEMP",str(Path.home())))/"sss_remove_after_exit.ps1"
  q=lambda x:"'"+str(x).replace("'","''")+"'"
  script="$ErrorActionPreference='SilentlyContinue'\n$waitFor="+str(os.getpid())+"\nwhile(Get-Process -Id $waitFor -ErrorAction SilentlyContinue){Start-Sleep -Milliseconds 500}\n"
- script+="Remove-Item -LiteralPath "+q(DATA_DIR)+" -Recurse -Force\nRemove-Item -LiteralPath "+q(ROOT)+" -Recurse -Force\n"
+ script+="Remove-Item -LiteralPath "+q(DATA_DIR)+" -Recurse -Force\nRemove-Item -LiteralPath "+q(ROOT)+" -Recurse -Force\nGet-ChildItem -LiteralPath $env:TEMP -Directory -Filter 'sss_update_*' | Remove-Item -Recurse -Force\nRemove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force\n"
  cleanup.write_text(script,encoding="utf-8")
  subprocess.Popen(["powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File",str(cleanup)],creationflags=getattr(subprocess,"CREATE_NEW_PROCESS_GROUP",0x200),close_fds=True)
  QApplication.quit()
