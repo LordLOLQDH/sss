@@ -1,6 +1,6 @@
 {
   "name": "SchoolServer Security",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "channel": "stable",
-  "notes": "Scanprotokolle mit Logdatei und Logviewer, Quarantäneordnerpfad sichtbar mit Explorer-Shortcut, SSS-Logo als Windows-EXE-Icon, Versionshinweisfenster bei jedem neuen Update. KI-Setup-Syntaxfehler behoben."
+  "notes": "Windows-Anmeldeautostart wird automatisch eingerichtet und in Einstellungen deaktiviert/aktiviert. Ollama-Verbindungsprüfung verwendet jetzt das in Einstellungen gewählte Modell statt immer Qwen zu erwarten."
 }
