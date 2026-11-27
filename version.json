@@ -1,1 +1,6 @@
-{"name":"SchoolServer Security","version":"2.0.1","channel":"stable","notes":"Source updater downloads and installs updates directly from the repository main branch. Releases and EXE not required."}
+{
+  "name": "SchoolServer Security",
+  "version": "2.0.1",
+  "channel": "stable",
+  "notes": "Standalone Windows ZIP build with first-run school/device profile, local Ollama connection guide, and scan-folder setup wizard. No installer."
+}
