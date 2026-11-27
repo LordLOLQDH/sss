@@ -1,6 +1,6 @@
 {
   "name": "SchoolServer Security",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "channel": "stable",
-  "notes": "Neue eigenständige Hauptdatei: Scanner, Quarantäne, Protokolle, Einstellungen, Ollama-KI und Quellcode-Updater sind direkt in sss_gui.py integriert. Keine EXE und keine BAT zum Starten erforderlich."
+  "notes": "Neue sss_main.py-Hauptdatei, Windows-Startmenü- und Autostart-Verknüpfungen, vollständiger SSS-Deinstaller und ZIP-basierter Updater."
 }
