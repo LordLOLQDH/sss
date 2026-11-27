@@ -1,63 +1,40 @@
 # SchoolServer Security (SSS)
 
-**Lokaler Sicherheitsassistent für Windows**  
-Entwickelt von Adam Gabriel Kraus.
-
-SSS ist eine eigenständige Desktop-App mit lokaler Datei-Prüfung, nachvollziehbaren Hinweisen und optionalen KI-Erklärungen. Es gibt derzeit **keinen Installer**.
+**Lokaler Sicherheitsassistent für Windows, als Python-Projekt.** Keine EXE und kein Installer.
 
 ## Download und Start
 
-1. Lade das aktuelle Paket **SSS-Windows.zip** von der [SSS-Downloadseite](https://lordlolqdh.github.io/sss/download.html) oder aus den [GitHub Releases](https://github.com/LordLOLQDH/sss/releases).
-2. Entpacke die ZIP-Datei in einen eigenen Ordner.
-3. Starte **SSS.exe**.
-4. Beim ersten Start öffnet sich automatisch der Einrichtungsassistent. Name, optional Schule/Gerät, KI und Scanordner werden eingerichtet; es gibt keine Rollenabfrage.
-5. Bei späteren Starts erkennt SSS das gespeicherte Profil und öffnet direkt die Anwendung.
+1. Lade das [Python-Quellcode-ZIP](https://github.com/LordLOLQDH/sss/archive/refs/heads/main.zip) oder die [Downloadseite](https://lordlolqdh.github.io/sss/download.html).
+2. ZIP in einen eigenen Ordner entpacken.
+3. **Start-SSS.bat** starten. Beim ersten Start erstellt das Skript eine lokale virtuelle Umgebung und installiert die Abhängigkeiten.
+4. SSS öffnet den Einrichtungsdialog.
 
-Profil und Einstellungen werden lokal unter **%LOCALAPPDATA%\\SchoolServer Security\\settings.json** gespeichert.
+Python 3.10+ muss installiert sein. Beim Windows-Python-Setup die Option "Add Python to PATH" aktivieren.
 
-## Erste Einrichtung
+## Updates
 
-### 1. Profil
-Name ist optional eingetragen, Schule und Gerätename sind optional. Eine Rollenabfrage gibt es nicht; im Profil wird intern IT Manager gespeichert. Diese Angaben bleiben lokal auf dem Gerät. Eine zentrale Schulserver-Anbindung ist noch nicht implementiert.
+SSS kann unter **Updates** die Version auf GitHub prüfen. Bei einem neuen Stand lädt der Updater das Quellcode-ZIP herunter, prüft die benötigten Dateien und legt das Update bereit. Nach dem Schließen des Programms werden die Dateien kopiert und SSS über Start-SSS.bat erneut gestartet.
 
-### 2. Lokale KI mit Ollama
-SSS unterstützt aktuell Ollama. Andere KI-Anbieter und Cloud-APIs sind noch nicht integriert.
+## Lokale KI
 
-1. Öffne https://ollama.com/download/windows und installiere Ollama.
-2. Öffne PowerShell oder Windows Terminal.
-3. Führe **ollama pull qwen2.5:3b** aus.
-4. Warte, bis der Modell-Download abgeschlossen ist.
-5. Klicke im SSS-Assistenten auf **Verbindung testen**.
-
-Die KI läuft lokal. Die KI-Erklärung ist eine ergänzende Einschätzung und kann Scannerergebnisse nicht überschreiben.
-
-### 3. Scanordner
-Wähle die zu prüfenden Ordner und das Prüfintervall. Scanordner, Ausschlüsse, Prüfintervall und Dateigrößenlimit können später im übersichtlichen Einstellungen-Fenster geändert werden.
+SSS unterstützt lokale Ollama-Modelle. Installiere Ollama über https://ollama.com/download/windows, öffne es und lade das in SSS ausgewählte Modell über **KI einrichten**. KI-Analyse ist optional. Wenn Ollama oder das Modell nicht erreichbar ist, zeigt SSS einen konkreten Fehler.
 
 ## Funktionen
 
-- PySide6-Desktopoberfläche
-- Konfigurierbare Scanordner und Ausschlüsse
-- SHA-256-Dateihashes
-- Optionale ClamAV-Erkennung, sofern clamscan installiert ist
-- Defensive Musterprüfungen für ausgewählte Skriptdateien
-- Nutzerbestätigte, reversible Quarantäne
-- Hash-geprüfte Wiederherstellung aus der Quarantäne
-- Optionale lokale KI-Erklärungen via Ollama\n- Modell-Download direkt über den KI-Dialog\n- Einstellungen mit Scan- und KI-Bereichen\n- Windows-EXE-Updater, der die veröffentlichte ZIP lädt, die neue EXE nach dem Beenden einsetzt und neu startet
+- Lokale Prüfungen und SHA-256
+- Defensive Mustererkennung für ausgewählte Scriptdateien
+- Optional ClamAV, falls lokal installiert
+- Nutzerbestätigte Quarantäne und Hash-geprüfte Wiederherstellung
+- Lokale KI-Erklärung via Ollama
+- Konfigurierbare Scanordner, Ausschlüsse und Zeitintervalle
+- Logs und kontrollierbarer Windows-Anmeldeautostart
+- Quellcode-Updater
 
 ## Entwicklerstart
 
-Python 3.10+:
+```bat
+py -3 -m pip install -r requirements.txt
+py -3 sss_gui.py
+```
 
-**py -3 -m pip install -r requirements.txt**  
-**py -3 sss_gui.py**
-
-Alternativ unter Windows **Start-SSS.bat** starten. Das Skript richtet eine lokale virtuelle Python-Umgebung ein und startet SSS. Es ist kein Installationsassistent.
-
-## Windows-Build
-
-GitHub Actions baut nach Änderungen auf main eine eigenständige Windows-Anwendung und veröffentlicht **SSS-Windows.zip** als Vorab-Release. Das Paket enthält **SSS.exe**; ein Setup- oder Installationsprogramm wird nicht verwendet.
-
-## Update\n\nDer Updater ist für die portable Windows-EXE gedacht. Er prüft die veröffentlichte Version und lädt das Windows-ZIP. Die EXE wird erst nach dem Schließen des laufenden Programms ersetzt und anschließend neu gestartet.\n\n## Sicherheitshinweise
-
-SSS ist ein Entwicklungsprojekt und **kein zertifizierter Virenschutz oder Endpoint-Protection-Ersatz**. Es kann Schadsoftware übersehen und Fehlalarme erzeugen. Untersuchte Dateien werden nicht ausgeführt. Quarantäneaktionen erfordern eine Bestätigung. Der Einsatz auf Schulgeräten benötigt die Freigabe der zuständigen IT.
+SSS ist ein Prototyp, kein zertifizierter Virenschutz. Es kann Dateien übersehen und Fehlalarme erzeugen. Untersuchte Dateien werden nicht ausgeführt. Quarantäneaktionen benötigen eine Bestätigung.
