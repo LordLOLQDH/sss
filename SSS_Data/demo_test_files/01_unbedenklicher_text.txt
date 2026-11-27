@@ -1,0 +1,2 @@
+Dies ist eine harmlose SSS-Demodatei.
+Sie enthält normalen Text und keine ausführbaren Befehle.
