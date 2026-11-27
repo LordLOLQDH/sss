@@ -145,27 +145,81 @@ class PullWorker(QObject):
    p=subprocess.run(["ollama","pull",self.model],capture_output=True,text=True,timeout=900)
    self.done.emit({"ok":p.returncode==0,"output":(p.stdout or "")+"\n"+(p.stderr or "")})
   except Exception as e:self.done.emit({"ok":False,"output":str(e)})
+def _ps_quote(value):
+ return "'" + str(value).replace("'","''") + "'"
+def _make_shortcut(link,target,args=""):
+ link=Path(link);link.parent.mkdir(parents=True,exist_ok=True)
+ ps="$w=New-Object -ComObject WScript.Shell;$s=$w.CreateShortcut("+_ps_quote(link)+");$s.TargetPath="+_ps_quote(target)+";$s.Arguments="+_ps_quote(args)+";$s.WorkingDirectory="+_ps_quote(ROOT)+";$s.Description="+_ps_quote(APP_NAME)+";$s.Save()"
+ result=subprocess.run(["powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-Command",ps],capture_output=True,text=True,timeout=20)
+ if result.returncode:raise RuntimeError(result.stderr.strip() or "Windows-Verknüpfung konnte nicht erstellt werden.")
 def autostart_enabled():
- try:
-  import winreg
-  with winreg.OpenKey(winreg.HKEY_CURRENT_USER,r"Software\Microsoft\Windows\CurrentVersion\Run",0,winreg.KEY_READ) as key:
-   try: value,_=winreg.QueryValueEx(key,"SchoolServer Security")
-   except FileNotFoundError:return False
-   return bool(value)
- except Exception:return False
+ return (STARTUP_DIR/"SchoolServer Security.lnk").exists()
 def set_autostart(enabled):
  try:
-  import winreg
-  keypath=r"Software\Microsoft\Windows\CurrentVersion\Run"
-  with winreg.OpenKey(winreg.HKEY_CURRENT_USER,keypath,0,winreg.KEY_SET_VALUE) as key:
-   if enabled:
-    executable='"'+str(Path(sys.executable).resolve())+'" '+'"'+str(Path(__file__).resolve())+'"'
-    winreg.SetValueEx(key,"SchoolServer Security",0,winreg.REG_SZ,executable)
-   else:
-    try:winreg.DeleteValue(key,"SchoolServer Security")
-    except FileNotFoundError:pass
+  link=STARTUP_DIR/"SchoolServer Security.lnk"
+  if enabled:_make_shortcut(link,sys.executable,'"'+str(Path(__file__).resolve())+'"')
+  else:link.unlink(missing_ok=True)
   return True,""
  except Exception as exc:return False,str(exc)
+def register_windows_app():
+ if os.name!="nt":return
+ _make_shortcut(PROGRAMS_DIR/"SchoolServer Security.lnk",sys.executable,'"'+str(Path(__file__).resolve())+'"')
+ try:
+  import winreg
+  with winreg.CreateKey(winreg.HKEY_CURRENT_USER,r"Software\Microsoft\Windows\CurrentVersion\Uninstall\SchoolServerSecurity") as key:
+   winreg.SetValueEx(key,"DisplayName",0,winreg.REG_SZ,APP_NAME)
+   winreg.SetValueEx(key,"DisplayVersion",0,winreg.REG_SZ,VERSION)
+   winreg.SetValueEx(key,"InstallLocation",0,winreg.REG_SZ,str(ROOT))
+ except Exception:logger.exception("Windows-App-Registrierung fehlgeschlagen")
+def install_update():
+ try:
+  import zipfile,tempfile
+  payload=urllib.request.Request("https://github.com/LordLOLQDH/sss/archive/refs/heads/main.zip",headers={"User-Agent":"SchoolServer-Security-Updater"})
+  with urllib.request.urlopen(payload,timeout=120) as response:archive=response.read()
+  stage=Path(tempfile.mkdtemp(prefix="sss_update_"));zip_path=stage/"repo.zip";zip_path.write_bytes(archive)
+  extract=stage/"payload";extract.mkdir()
+  with zipfile.ZipFile(zip_path) as z:
+   root_name=z.namelist()[0].split("/")[0]
+   for member in z.namelist():
+    rel=member[len(root_name)+1:] if member.startswith(root_name+"/") else ""
+    if not rel or not (rel=="sss_main.py" or rel.startswith("SSS_Data/")):continue
+    dest=extract/rel
+    if member.endswith("/"):dest.mkdir(parents=True,exist_ok=True)
+    else:
+     dest.parent.mkdir(parents=True,exist_ok=True)
+     with z.open(member) as src,dest.open("wb") as out:shutil.copyfileobj(src,out)
+  if not (extract/"sss_main.py").is_file() or not (extract/"SSS_Data"/"version.json").is_file():
+   raise RuntimeError("Das Update-Archiv ist unvollständig. Die bestehende Installation bleibt unverändert.")
+  ps=stage/"apply.ps1"
+  quote=lambda x:"'"+str(x).replace("'","''")+"'"
+  script="$ErrorActionPreference='Stop'\n$pidToWait="+str(os.getpid())+"\nwhile(Get-Process -Id $pidToWait -ErrorAction SilentlyContinue){Start-Sleep -Milliseconds 700}\n"
+  script+="Copy-Item -LiteralPath "+quote(extract/"sss_main.py")+" -Destination "+quote(ROOT/"sss_main.py")+" -Force\n"
+  script+="Copy-Item -Path "+quote(extract/"SSS_Data")+"'\\*' -Destination "+quote(ROOT/"SSS_Data")+" -Recurse -Force\n"
+  script+="Start-Process -FilePath "+quote(sys.executable)+" -ArgumentList "+quote(ROOT/"sss_main.py")+"\n"
+  ps.write_text(script,encoding="utf-8")
+  subprocess.Popen(["powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File",str(ps)],creationflags=getattr(subprocess,"CREATE_NEW_PROCESS_GROUP",0x200),close_fds=True)
+  return {"ok":True,"message":"Update vorbereitet. Nach dem Schließen wird die neue Version installiert und SSS neu gestartet."}
+ except Exception as e:return {"ok":False,"error":"Update fehlgeschlagen: "+str(e)}
+def uninstall_sss(parent):
+ answer=QMessageBox.warning(parent,"SSS vollständig entfernen","SSS, Einstellungen, Protokolle, Quarantäne, Installationsordner sowie Startmenü- und Autostart-Einträge werden entfernt. Eine separat installierte Ollama-Version bleibt unangetastet. Auf dem Desktop bleibt nur eine Abschieds-Logdatei zurück. Dieser Vorgang kann nicht rückgängig gemacht werden. Wirklich entfernen?",QMessageBox.Yes|QMessageBox.No,QMessageBox.No)
+ if answer!=QMessageBox.Yes:return
+ desktop=Path(os.environ.get("USERPROFILE",str(Path.home())))/"Desktop"
+ farewell=desktop/"SchoolServer Security - Abschied.log"
+ farewell.write_text("SchoolServer Security wurde entfernt.\n\nDanke, dass du SSS verwendet hast. Wir hoffen, dass es dir gute Dienste geleistet hat.\n\nAlle zu SSS gehörenden lokalen Einstellungen, Protokolle und Quarantänedaten wurden entfernt.\n",encoding="utf-8")
+ try:
+  (STARTUP_DIR/"SchoolServer Security.lnk").unlink(missing_ok=True)
+  (PROGRAMS_DIR/"SchoolServer Security.lnk").unlink(missing_ok=True)
+  import winreg
+  winreg.DeleteKey(winreg.HKEY_CURRENT_USER,r"Software\Microsoft\Windows\CurrentVersion\Uninstall\SchoolServerSecurity")
+ except Exception:pass
+ cleanup=Path(os.environ.get("TEMP",str(Path.home())))/"sss_remove_after_exit.ps1"
+ q=lambda x:"'"+str(x).replace("'","''")+"'"
+ script="$ErrorActionPreference='SilentlyContinue'\n$waitFor="+str(os.getpid())+"\nwhile(Get-Process -Id $waitFor -ErrorAction SilentlyContinue){Start-Sleep -Milliseconds 500}\n"
+ script+="Remove-Item -LiteralPath "+q(DATA_DIR)+" -Recurse -Force\nRemove-Item -LiteralPath "+q(ROOT)+" -Recurse -Force\n"
+ cleanup.write_text(script,encoding="utf-8")
+ subprocess.Popen(["powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File",str(cleanup)],creationflags=getattr(subprocess,"CREATE_NEW_PROCESS_GROUP",0x200),close_fds=True)
+ QApplication.quit()
+
 class Main(QMainWindow):
  def __init__(self):
   super().__init__();self.c=load_cfg();self.rows=[];self.busy=False;self.ai_online=False;self.next=time.monotonic()+self.c["interval_minutes"]*60
@@ -180,7 +234,7 @@ class Main(QMainWindow):
   if logo_path.exists():
    pix=QPixmap(str(logo_path))
    if not pix.isNull():logo.setPixmap(pix.scaled(54,54,Qt.KeepAspectRatio,Qt.SmoothTransformation))
-  header.addWidget(logo);titles=QVBoxLayout();titles.setSpacing(1);h=QLabel("SchoolServer Security");h.setStyleSheet("font-size:22px;font-weight:850");sub=QLabel(f"SSS 2.0 · Local Security Engine · {VERSION}");sub.setStyleSheet("color:#718078");titles.addWidget(h);titles.addWidget(sub);header.addLayout(titles);header.addStretch();self.ai_label=QLabel("LOCAL KI · wird geprüft");self.ai_label.setStyleSheet("font-weight:750");header.addWidget(self.ai_label);self.ai_setup_btn=QPushButton("KI einrichten");self.ai_setup_btn.clicked.connect(self.ai_setup);header.addWidget(self.ai_setup_btn);l.addLayout(header)
+  header.addWidget(logo);titles=QVBoxLayout();titles.setSpacing(1);h=QLabel("SchoolServer Security");h.setStyleSheet("font-size:22px;font-weight:850");sub=QLabel(f"SSS 2.0 · Local Security Engine · {VERSION}");sub.setStyleSheet("color:#718078");titles.addWidget(h);titles.addWidget(sub);header.addLayout(titles);header.addStretch();self.ai_label=QLabel("LOCAL KI · wird geprüft");self.ai_label.setStyleSheet("font-weight:750");header.addWidget(self.ai_label);self.ai_setup_btn=QPushButton("KI einrichten");self.ai_setup_btn.clicked.connect(self.ai_setup);header.addWidget(self.ai_setup_btn);self.uninstall_btn=QPushButton("Deinstallieren");self.uninstall_btn.clicked.connect(lambda:uninstall_sss(self));header.addWidget(self.uninstall_btn);l.addLayout(header)
   intro=QHBoxLayout();txt=QVBoxLayout();headline=QLabel("Sicherheitsübersicht");headline.setStyleSheet("font-size:27px;font-weight:850");desc=QLabel("Automatische lokale Prüfungen. Dateiaktionen erfolgen nachvollziehbar und mit Bestätigung.");desc.setStyleSheet("color:#718078");txt.addWidget(headline);txt.addWidget(desc);intro.addLayout(txt);intro.addStretch();self.scan_btn=QPushButton("Jetzt prüfen");self.scan_btn.setObjectName("primary");self.scan_btn.clicked.connect(self.scan);intro.addWidget(self.scan_btn);self.settings_btn=QPushButton("Einstellungen");self.settings_btn.clicked.connect(self.settings);intro.addWidget(self.settings_btn);self.update_btn=QPushButton("Updates");self.update_btn.clicked.connect(self.check_updates);intro.addWidget(self.update_btn);self.logs_btn=QPushButton("Logs");self.logs_btn.clicked.connect(self.show_logs);intro.addWidget(self.logs_btn)
 
   l.addLayout(intro)
@@ -389,6 +443,9 @@ class Main(QMainWindow):
   layout.addWidget(box);buttons=QHBoxLayout();refresh=QPushButton("Aktualisieren");open_btn=QPushButton("Logdatei öffnen");close=QPushButton("Schließen");buttons.addWidget(refresh);buttons.addWidget(open_btn);buttons.addStretch();buttons.addWidget(close);layout.addLayout(buttons)
   refresh.clicked.connect(lambda:box.setPlainText(LOGFILE.read_text(encoding="utf-8")[-250000:] if LOGFILE.exists() else ""));open_btn.clicked.connect(lambda:QDesktopServices.openUrl(QUrl.fromLocalFile(str(LOGFILE))));close.clicked.connect(d.accept);d.exec()
 if __name__=="__main__":
+ if os.name=="nt":
+  try:register_windows_app()
+  except Exception:logging.exception("Windows-Registrierung fehlgeschlagen")
  app=QApplication(sys.argv);app.setApplicationName(APP_NAME);app.setFont(QFont("Segoe UI",10))
  w=Main();w.show()
  cfg=load_cfg()
