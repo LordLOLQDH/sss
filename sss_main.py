@@ -17,7 +17,7 @@ STARTUP_DIR=Path(os.environ.get("APPDATA",str(Path.home()))) / "Microsoft" / "Wi
 PROGRAMS_DIR=Path(os.environ.get("APPDATA",str(Path.home()))) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
 DATA_DIR=Path(os.environ.get("LOCALAPPDATA",str(Path.home())))/"SchoolServer Security"
 QUARANTINE=DATA_DIR/"Quarantine"
-VERSION="2.4.1"
+VERSION="2.4.2"
 DEFAULT_MODEL="qwen2.5:3b"
 SCRIPT_EXT={".ps1",".bat",".cmd",".vbs",".js",".py",".hta",".scr",".jse",".vbe"}
 RULES=[(r"powershell.{0,80}-(enc|encodedcommand)","PowerShell encoded command"),(r"\b(eval|exec)\s*\(","Dynamic code execution"),(r"\b(shell=True|os\.system\s*\()","Shell execution"),(r"frombase64string.{0,100}(invoke|exec|eval)","Decode-and-execute pattern")]
@@ -236,9 +236,12 @@ def register_windows_app():
 def install_update():
  try:
   import zipfile,tempfile
+  if os.name!="nt":raise RuntimeError("Der automatische Austausch wird derzeit nur unter Windows unterstützt.")
+  stage=Path(tempfile.mkdtemp(prefix="sss_update_"))
+  log_path=DATA_DIR/"updater.log"
   payload=urllib.request.Request("https://github.com/LordLOLQDH/sss/archive/refs/heads/main.zip",headers={"User-Agent":"SchoolServer-Security-Updater"})
   with urllib.request.urlopen(payload,timeout=120) as response:archive=response.read()
-  stage=Path(tempfile.mkdtemp(prefix="sss_update_"));zip_path=stage/"repo.zip";zip_path.write_bytes(archive)
+  zip_path=stage/"repo.zip";zip_path.write_bytes(archive)
   extract=stage/"payload";extract.mkdir()
   with zipfile.ZipFile(zip_path) as z:
    root_name=z.namelist()[0].split("/")[0]
@@ -256,14 +259,18 @@ def install_update():
   if check.returncode:raise RuntimeError("Die neue Hauptdatei besteht die Python-Syntaxprüfung nicht: "+check.stderr)
   ps=stage/"apply.ps1"
   quote=lambda x:"'"+str(x).replace("'","''")+"'"
-  script="$ErrorActionPreference='Stop'\n$pidToWait="+str(os.getpid())+"\nwhile(Get-Process -Id $pidToWait -ErrorAction SilentlyContinue){Start-Sleep -Milliseconds 700}\n"
-  script+="Copy-Item -LiteralPath "+quote(extract/"sss_main.py")+" -Destination "+quote(ROOT/"sss_main.py")+" -Force\n"
-  script+="$srcData = "+quote(extract/"SSS_Data")+"\n$dstData = "+quote(ROOT/"SSS_Data")+"\nif(Test-Path $dstData){Remove-Item -LiteralPath $dstData -Recurse -Force}\nCopy-Item -LiteralPath $srcData -Destination $dstData -Recurse -Force\n"
-  script+="Start-Process -FilePath "+quote(_python_gui())+" -ArgumentList "+quote(ROOT/"sss_main.py")+" -WorkingDirectory "+quote(ROOT)+"\nRemove-Item -LiteralPath "+quote(stage)+" -Recurse -Force\n"
+  script="$ErrorActionPreference='Stop'\n$log="+quote(log_path)+"\nfunction Log($m){Add-Content -LiteralPath $log -Value ((Get-Date -Format 'yyyy-MM-dd HH:mm:ss')+' | '+$m)}\n"
+  script+="try {\nLog 'Updater gestartet; warte auf das Ende von SSS.'\n$pidToWait="+str(os.getpid())+"\n$deadline=(Get-Date).AddSeconds(90)\nwhile(Get-Process -Id $pidToWait -ErrorAction SilentlyContinue){if((Get-Date) -gt $deadline){throw 'SSS wurde nicht innerhalb von 90 Sekunden beendet.'};Start-Sleep -Milliseconds 500}\n"
+  script+="$root="+quote(ROOT)+"\n$source="+quote(extract)+"\n$mainTarget=Join-Path $root 'sss_main.py'\n$backup=Join-Path $root 'sss_main.py.previous'\nif(Test-Path $mainTarget){Copy-Item -LiteralPath $mainTarget -Destination $backup -Force}\nCopy-Item -LiteralPath (Join-Path $source 'sss_main.py') -Destination ($mainTarget+'.new') -Force\nMove-Item -LiteralPath ($mainTarget+'.new') -Destination $mainTarget -Force\nLog 'Hauptprogramm aktualisiert.'\n"
+  script+="$sourceData=Join-Path $source 'SSS_Data'\n$targetData=Join-Path $root 'SSS_Data'\nNew-Item -ItemType Directory -Force -Path $targetData | Out-Null\nforeach($name in @('assets','modules','tools')){$from=Join-Path $sourceData $name;if(Test-Path $from){$to=Join-Path $targetData $name;New-Item -ItemType Directory -Force -Path $to | Out-Null;Get-ChildItem -LiteralPath $from -Recurse -File | ForEach-Object {$relative=$_.FullName.Substring($from.Length).TrimStart('\\');$dest=Join-Path $to $relative;$parent=Split-Path -Parent $dest;New-Item -ItemType Directory -Force -Path $parent | Out-Null;Copy-Item -LiteralPath $_.FullName -Destination $dest -Force}}}\nCopy-Item -LiteralPath (Join-Path $sourceData 'version.json') -Destination (Join-Path $targetData 'version.json') -Force\nLog 'Programmdateien aktualisiert; Einstellungen, Logs und Quarantäne wurden beibehalten.'\n"
+  script+="$python="+quote(_python_gui())+"\n$app=Join-Path $root 'sss_main.py'\n$proc=Start-Process -FilePath $python -ArgumentList ('\\"'+$app+'\\"') -WorkingDirectory $root -PassThru\nStart-Sleep -Seconds 2\nif(-not (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue)){throw 'Der neue SSS-Prozess wurde gestartet, ist aber sofort wieder beendet worden.'}\nLog ('Neustart erfolgreich; PID='+$proc.Id)\n} catch {Log ('FEHLER: '+$_.Exception.Message);exit 1}\n";
   ps.write_text(script,encoding="utf-8")
-  subprocess.Popen(["powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File",str(ps)],creationflags=getattr(subprocess,"CREATE_NEW_PROCESS_GROUP",0x200),close_fds=True)
-  return {"ok":True,"message":"Update vorbereitet. Nach dem Schließen wird die neue Version installiert und SSS neu gestartet."}
- except Exception as e:return {"ok":False,"error":"Update fehlgeschlagen: "+str(e)}
+  subprocess.Popen(["powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-WindowStyle","Hidden","-File",str(ps)],creationflags=getattr(subprocess,"CREATE_NEW_PROCESS_GROUP",0x200),close_fds=True)
+  logger.info("Updater-Prozess gestartet; Logdatei: %s",log_path)
+  return {"ok":True,"message":"Update vorbereitet. SSS wird geschlossen, aktualisiert und anschließend neu gestartet. Falls etwas fehlschlägt, steht der genaue Fehler in updater.log."}
+ except Exception as e:
+  logger.exception("Updater konnte nicht gestartet werden")
+  return {"ok":False,"error":"Update fehlgeschlagen: "+str(e)}
 def uninstall_sss(parent):
  answer=QMessageBox.warning(parent,"SSS vollständig entfernen","SSS, Einstellungen, Protokolle, Quarantäne, Installationsordner sowie Startmenü- und Autostart-Einträge werden entfernt. Eine separat installierte Ollama-Version bleibt unangetastet. Auf dem Desktop bleibt nur eine Abschieds-Logdatei zurück. Dieser Vorgang kann nicht rückgängig gemacht werden. Wirklich entfernen?",QMessageBox.Yes|QMessageBox.No,QMessageBox.No)
  if answer!=QMessageBox.Yes:return
