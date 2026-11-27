@@ -10,7 +10,7 @@ SSS ist eine eigenständige Desktop-App mit lokaler Datei-Prüfung, nachvollzieh
 1. Lade das aktuelle Paket **SSS-Windows.zip** von der [SSS-Downloadseite](https://lordlolqdh.github.io/sss/download.html) oder aus den [GitHub Releases](https://github.com/LordLOLQDH/sss/releases).
 2. Entpacke die ZIP-Datei in einen eigenen Ordner.
 3. Starte **SSS.exe**.
-4. Beim ersten Start öffnet sich automatisch der Einrichtungsassistent. Er fragt dein Profil, die KI-Verbindung und die Scanordner ab.
+4. Beim ersten Start öffnet sich automatisch der Einrichtungsassistent. Name, optional Schule/Gerät, KI und Scanordner werden eingerichtet; es gibt keine Rollenabfrage.
 5. Bei späteren Starts erkennt SSS das gespeicherte Profil und öffnet direkt die Anwendung.
 
 Profil und Einstellungen werden lokal unter **%LOCALAPPDATA%\\SchoolServer Security\\settings.json** gespeichert.
@@ -18,7 +18,7 @@ Profil und Einstellungen werden lokal unter **%LOCALAPPDATA%\\SchoolServer Secur
 ## Erste Einrichtung
 
 ### 1. Profil
-Name, Schule/Organisation, Rolle, Gerätename und optionaler Schulserver. Diese Angaben bleiben lokal auf dem Gerät. Eine zentrale Schulserver-Anbindung ist noch nicht implementiert.
+Name ist optional eingetragen, Schule und Gerätename sind optional. Eine Rollenabfrage gibt es nicht; im Profil wird intern IT Manager gespeichert. Diese Angaben bleiben lokal auf dem Gerät. Eine zentrale Schulserver-Anbindung ist noch nicht implementiert.
 
 ### 2. Lokale KI mit Ollama
 SSS unterstützt aktuell Ollama. Andere KI-Anbieter und Cloud-APIs sind noch nicht integriert.
@@ -32,7 +32,7 @@ SSS unterstützt aktuell Ollama. Andere KI-Anbieter und Cloud-APIs sind noch nic
 Die KI läuft lokal. Die KI-Erklärung ist eine ergänzende Einschätzung und kann Scannerergebnisse nicht überschreiben.
 
 ### 3. Scanordner
-Wähle die zu prüfenden Ordner und das Prüfintervall. Die Auswahl kann später in den Einstellungen geändert werden.
+Wähle die zu prüfenden Ordner und das Prüfintervall. Scanordner, Ausschlüsse, Prüfintervall und Dateigrößenlimit können später im übersichtlichen Einstellungen-Fenster geändert werden.
 
 ## Funktionen
 
@@ -43,7 +43,7 @@ Wähle die zu prüfenden Ordner und das Prüfintervall. Die Auswahl kann später
 - Defensive Musterprüfungen für ausgewählte Skriptdateien
 - Nutzerbestätigte, reversible Quarantäne
 - Hash-geprüfte Wiederherstellung aus der Quarantäne
-- Optionale lokale KI-Erklärungen via Ollama
+- Optionale lokale KI-Erklärungen via Ollama\n- Modell-Download direkt über den KI-Dialog\n- Einstellungen mit Scan- und KI-Bereichen\n- Windows-EXE-Updater, der die veröffentlichte ZIP lädt, die neue EXE nach dem Beenden einsetzt und neu startet
 
 ## Entwicklerstart
 
@@ -58,6 +58,6 @@ Alternativ unter Windows **Start-SSS.bat** starten. Das Skript richtet eine loka
 
 GitHub Actions baut nach Änderungen auf main eine eigenständige Windows-Anwendung und veröffentlicht **SSS-Windows.zip** als Vorab-Release. Das Paket enthält **SSS.exe**; ein Setup- oder Installationsprogramm wird nicht verwendet.
 
-## Sicherheitshinweise
+## Update\n\nDer Updater ist für die portable Windows-EXE gedacht. Er prüft die veröffentlichte Version und lädt das Windows-ZIP. Die EXE wird erst nach dem Schließen des laufenden Programms ersetzt und anschließend neu gestartet.\n\n## Sicherheitshinweise
 
 SSS ist ein Entwicklungsprojekt und **kein zertifizierter Virenschutz oder Endpoint-Protection-Ersatz**. Es kann Schadsoftware übersehen und Fehlalarme erzeugen. Untersuchte Dateien werden nicht ausgeführt. Quarantäneaktionen erfordern eine Bestätigung. Der Einsatz auf Schulgeräten benötigt die Freigabe der zuständigen IT.
