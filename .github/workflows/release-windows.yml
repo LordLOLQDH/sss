@@ -30,15 +30,18 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller pillow
 
       - name: Validate Python source
         run: python -m py_compile sss_gui.py sss_core.py sss_ai.py sss_updater.py sss_setup.py
 
+      - name: Create application icon from logo
+        run: |
+          python -c "from PIL import Image; Image.open('assets/Sicherheits-Schild mit Servern und Schloss.png').convert('RGBA').save('sss.ico',sizes=[(256,256),(128,128),(64,64),(48,48),(32,32),(16,16)])"
       - name: Build standalone desktop app
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --clean --windowed --onefile --name SSS --add-data "assets;assets" --add-data "version.json;." sss_gui.py
+          pyinstaller --noconfirm --clean --windowed --onefile --icon sss.ico --name SSS --add-data "assets;assets" --add-data "version.json;." sss_gui.py
           if (!(Test-Path "dist/SSS.exe")) { throw "SSS.exe was not created." }
           Compress-Archive -Path "dist/SSS.exe" -DestinationPath "dist/SSS-Windows.zip" -Force
 
