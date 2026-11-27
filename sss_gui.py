@@ -158,7 +158,7 @@ class Main(QMainWindow):
   d=QDialog(self);d.setWindowTitle("SSS · KI verbinden");d.resize(580,460);layout=QVBoxLayout(d);layout.setSpacing(12)
   title=QLabel("Lokale KI mit Ollama");title.setStyleSheet("font-size:21px;font-weight:800");layout.addWidget(title)
   desc=QLabel("SSS nutzt Ollama lokal. Erst Ollama installieren, danach das Modell direkt hier laden und Verbindung testen.");desc.setWordWrap(True);layout.addWidget(desc)
-  guide=QLabel("1. Ollama für Windows installieren.\n2. Danach unten „Modell installieren / aktualisieren“ klicken. SSS führt den Download aus.\n3. Sobald der Modell-Download fertig ist, Verbindung prüfen.\n\nModell: "+DEFAULT_MODEL+"\nDer Modell-Download kann mehrere GB groß sein.")
+  model_name=self.c.get("ai_model",DEFAULT_MODEL)\n  guide=QLabel("1. Ollama für Windows installieren.\\n2. Danach unten „Modell installieren / aktualisieren“ klicken. SSS führt den Download aus.\\n3. Sobald der Modell-Download fertig ist, Verbindung prüfen.\\n\\nModell: "+model_name+"\\nDer Modell-Download kann mehrere GB groß sein.")
   guide.setWordWrap(True);guide.setStyleSheet("background:white;border:1px solid #dfe8e2;border-radius:12px;padding:14px");layout.addWidget(guide)
   link=QPushButton("Ollama für Windows installieren");link.clicked.connect(lambda:QDesktopServices.openUrl(QUrl("https://ollama.com/download/windows")));layout.addWidget(link)
   self.ai_setup_status=QLabel("Status wird geprüft …");self.ai_setup_status.setWordWrap(True);layout.addWidget(self.ai_setup_status)
@@ -182,13 +182,13 @@ class Main(QMainWindow):
   if not ai_status().get("online"):
    QMessageBox.warning(d,"Ollama nicht gefunden","Installiere zuerst Ollama für Windows und öffne es.");return
   self.pull_btn.setEnabled(False);self.pull_btn.setText("Modell wird geladen …");self.ai_setup_status.setText("Modell-Download läuft. Das kann einige Minuten dauern.")
-  self.pull_thread=QThread(d);self.pull_worker=PullWorker(DEFAULT_MODEL);self.pull_worker.moveToThread(self.pull_thread)
+  model_name=self.c.get("ai_model",DEFAULT_MODEL)\n  self.pull_thread=QThread(d);self.pull_worker=PullWorker(model_name);self.pull_worker.moveToThread(self.pull_thread)
   self.pull_thread.started.connect(self.pull_worker.run);self.pull_worker.done.connect(self.pull_result)
   self.pull_worker.done.connect(self.pull_thread.quit);self.pull_worker.done.connect(self.pull_worker.deleteLater);self.pull_thread.finished.connect(self.pull_thread.deleteLater);self.pull_thread.start()
  def pull_result(self,result):
   self.pull_btn.setEnabled(True);self.pull_btn.setText("Modell installieren / aktualisieren")
   if result.get("ok"):
-   self.ai_setup_status.setText("Modell erfolgreich geladen. KI ist einsatzbereit.")
+   self.ai_setup_status.setText("Modell "+self.c.get("ai_model",DEFAULT_MODEL)+" erfolgreich geladen. KI ist einsatzbereit.")
    self.ai_setup_status.setStyleSheet("color:#16884b;font-weight:750");self.check_ai()
   else:
    self.ai_setup_status.setText("Modell-Download fehlgeschlagen: "+result.get("output","Unbekannter Fehler")[-1200:])
