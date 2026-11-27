@@ -1,83 +1,14 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="de">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SSS herunterladen · SchoolServer Security</title>
-<meta name="description" content="SchoolServer Security direkt als Windows-App herunterladen. Kein Installer.">
-<meta name="theme-color" content="#f5f8f6">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SSS · Python-Version herunterladen</title>
 <style>
-:root{--bg:#f5f8f6;--ink:#172b22;--muted:#66776d;--line:#dfe8e2;--green:#16884b;--pale:#e8f5ed}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif}a{color:inherit;text-decoration:none}.wrap{max-width:1000px;margin:auto;padding:0 24px}header{background:#ffffffed;border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}.nav{height:72px;display:flex;align-items:center;justify-content:space-between}.brand{display:flex;align-items:center;gap:10px;font-weight:850}.brand img{width:39px;height:39px;object-fit:contain}.navlinks{display:flex;gap:22px;color:var(--muted);font-size:13px;font-weight:650}.hero{padding:68px 0 34px}.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:850;color:var(--green)}h1{font-size:clamp(42px,6vw,66px);line-height:1.04;letter-spacing:-.06em;margin:13px 0}.lead{font-size:18px;color:var(--muted);max-width:680px}.download{background:white;border:1px solid var(--line);border-radius:22px;padding:30px;box-shadow:0 18px 50px rgba(20,50,32,.06);margin:18px 0 32px}.top{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}.pill{display:inline-flex;background:var(--pale);color:var(--green);font-size:12px;font-weight:800;border-radius:30px;padding:6px 11px}.version{font-size:32px;font-weight:850;letter-spacing:-.05em;margin:13px 0 4px}.muted{color:var(--muted)}.btn{display:inline-flex;background:var(--green);color:white;border-radius:11px;padding:13px 18px;font-weight:800;margin-top:16px}.btn:hover{background:#0f713d}.small{font-size:12px;color:var(--muted);margin-top:13px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:20px 0 40px}.card{background:white;border:1px solid var(--line);border-radius:16px;padding:20px}.number{font-size:12px;color:var(--green);font-weight:850}.card h3{margin:8px 0}.card p{color:var(--muted);font-size:13px;margin:0}.guide{background:#eaf4ed;border-radius:18px;padding:25px;margin-bottom:42px}.guide h2{margin:0 0 10px}.guide ol{padding-left:22px}.guide li{margin:8px 0}.guide a{color:var(--green);font-weight:750;text-decoration:underline}footer{border-top:1px solid var(--line);padding:24px 0;color:var(--muted);font-size:12px}
-@media(max-width:650px){.wrap{padding:0 17px}.nav{height:64px}.navlinks{gap:12px}.navlinks a:nth-child(2){display:none}.hero{padding:46px 0 25px}.download{padding:21px}.grid{grid-template-columns:1fr}.version{font-size:27px}}
-</style>
-</head>
-<body>
-<header><div class="wrap nav"><a class="brand" href="index.html"><img src="assets/Sicherheits-Schild%20mit%20Servern%20und%20Schloss.png" alt="SSS Logo">SchoolServer Security</a><nav class="navlinks"><a href="index.html">Startseite</a><a href="#setup">Erste Einrichtung</a><a href="https://github.com/LordLOLQDH/sss">Quellcode</a></nav></div></header>
-<main class="wrap">
-<section class="hero"><div class="eyebrow">SSS Desktop · Windows</div><h1>SSS. Direkt starten.</h1><p class="lead">Kein Installationsassistent und kein Setup-Programm. Lade das Programm als ZIP herunter, entpacke es und starte SSS. Beim ersten Start richtet dich ein geführter Assistent ein.</p></section>
-<section class="download">
-<div class="top"><div class="eyebrow">Aktuelle Windows-Version</div><span class="pill">Portable ZIP · kein Installer</span></div>
-<div class="version" id="version">SSS 2.0.2</div><div id="release-name" class="muted" style="font-size:13px;font-weight:700">Windows Desktop · aktuelle Quellversion</div>
-<p class="muted">Windows 10/11 · 64-Bit · eigenständige Desktop-App · Profil und Einstellungen bleiben lokal auf deinem Gerät.</p>
-<div id="download-status" role="status" style="margin-top:16px;padding:13px 15px;border-radius:12px;background:#fff4df;color:#9a5b12;font-weight:700">Prüfe, ob das aktuelle Downloadpaket veröffentlicht wurde …</div><a class="btn" id="download-button" href="https://github.com/LordLOLQDH/sss/actions">Buildstatus ansehen</a>
-<p class="small">Die Website prüft automatisch, ob die aktuelle Windows-ZIP wirklich veröffentlicht wurde. Der Download-Button wird erst dann freigeschaltet. Die App ist derzeit ein Entwicklungsprojekt und kein zertifizierter Virenschutz.</p>
-</section>
-<div class="eyebrow">Was beim ersten Start passiert</div>
-<div class="grid">
-<article class="card"><div class="number">01 · PROFIL</div><h3>Schule und Gerät</h3><p>Du gibst deinen Namen an. Schule und Gerätename sind freiwillig. Eine Rolle wird nicht abgefragt.</p></article>
-<article class="card"><div class="number">02 · KI</div><h3>KI verbinden</h3><p>Der Assistent zeigt dir optional, wie du Ollama installierst und die lokale Verbindung testest. Du kannst diesen Schritt überspringen.</p></article>
-<article class="card"><div class="number">03 · ORDNER</div><h3>Scan einrichten</h3><p>Wähle deine Ordner, lege ausgeschlossene Pfade fest und bestimme das Prüfintervall. Danach öffnet sich die SSS-Oberfläche.</p></article>
-</div>
-<section class="guide" id="setup">
-<h2>So startest du SSS</h2>
-<ol>
-<li>ZIP-Datei herunterladen und in einen eigenen Ordner entpacken. Darin liegt die Datei SSS.exe.</li>
-<li><strong>SSS.exe</strong> doppelt anklicken. Beim ersten Start erscheint automatisch die Profileinrichtung.</li>
-<li>Im optionalen KI-Schritt kannst du Ollama verbinden oder direkt weitergehen.</li>
-<li>Scanordner auswählen und die Einrichtung abschließen. Beim nächsten Start wird dein gespeichertes Profil erkannt.</li>
-</ol>
-<p><strong>KI-Hinweis:</strong> SSS unterstützt aktuell Ollama lokal. Eine Cloud-KI oder andere Anbieter sind noch nicht integriert. Die offizielle Installationsseite: <a href="https://ollama.com/download/windows">ollama.com/download/windows</a>.</p>
-<p><strong>Wichtig:</strong> SSS scannt lokal und führt untersuchte Dateien nicht aus. Ergebnisse können falsch-positiv oder unvollständig sein. Auf Schulgeräten nur mit Freigabe der zuständigen IT verwenden.</p>
-</section>
-</main>
-<footer><div class="wrap">SchoolServer Security · SSS · <a href="https://github.com/LordLOLQDH/sss/releases">Alle Releases</a> · <a href="https://github.com/LordLOLQDH/sss/actions">Buildstatus</a></div></footer>
-
-<script>
-(async function () {
-  const versionNode = document.getElementById("version");
-  const statusNode = document.getElementById("download-status");
-  const button = document.getElementById("download-button");
-  const releaseName = document.getElementById("release-name");
-  const details = document.querySelector(".download .muted");
-  try {
-    const [v, r] = await Promise.all([
-      fetch("version.json?ts=" + Date.now(), {cache:"no-store"}),
-      fetch("https://api.github.com/repos/LordLOLQDH/sss/releases/tags/latest", {headers:{"Accept":"application/vnd.github+json"},cache:"no-store"})
-    ]);
-    if (v.ok) {
-      const data = await v.json();
-      versionNode.textContent = "SSS " + (data.version || "2.0.2");
-    }
-    if (!r.ok) throw new Error("Release nicht verfügbar");
-    const release = await r.json();
-    const asset = (release.assets || []).find(x => x.name === "SSS-Windows.zip" && x.state === "uploaded" && x.size > 100000);
-    if (!asset) throw new Error("Windows-Paket fehlt");
-    button.href = asset.browser_download_url;
-    button.textContent = versionNode.textContent + " für Windows herunterladen";
-    button.style.background = "#16884b";
-    statusNode.textContent = "Download verfügbar · aktualisiert " + new Date(asset.updated_at).toLocaleString("de-DE", {dateStyle:"medium",timeStyle:"short"});
-    statusNode.style.background = "#e8f5ed";
-    statusNode.style.color = "#16884b";
-    releaseName.textContent = "Veröffentlichtes Windows-Release";
-    details.textContent = "SSS-Windows.zip · " + (asset.size / 1048576).toFixed(1).replace(".", ",") + " MB · Enthält SSS.exe";
-  } catch (_) {
-    button.href = "https://github.com/LordLOLQDH/sss/actions";
-    button.textContent = "Buildstatus ansehen";
-    button.style.background = "#718078";
-    statusNode.textContent = "Version 2.0.2 wird gerade als Windows-App gebaut. Der Download erscheint hier automatisch, sobald die neue ZIP-Datei veröffentlicht ist.";
-    releaseName.textContent = "Neuer Windows-Build in Arbeit";
-    details.textContent = "Geplante Version 2.0.2 · Das neue Downloadpaket ist noch nicht bestätigt verfügbar.";
-  }
-})();
-</script>
-</body></html>
+:root{--bg:#f4f7f6;--ink:#172b22;--muted:#68776e;--line:#dfe8e2;--green:#16884b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif}a{color:inherit}.wrap{max-width:900px;margin:auto;padding:28px 20px}header{background:#fff;border-bottom:1px solid var(--line)}.nav{display:flex;align-items:center;justify-content:space-between}.brand{font-weight:800;text-decoration:none}.hero{padding:65px 0 30px}.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--green);font-weight:800}h1{font-size:clamp(36px,6vw,60px);line-height:1.05;letter-spacing:-.05em;margin:12px 0}.lead{color:var(--muted);max-width:680px;font-size:18px}.panel{background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px;margin:20px 0}.version{font-size:29px;font-weight:850;margin:10px 0}.btn{display:inline-block;background:var(--green);color:white;text-decoration:none;padding:12px 18px;border-radius:10px;font-weight:800;margin:8px 8px 0 0}.btn.alt{background:#fff;color:var(--ink);border:1px solid var(--line)}.muted{color:var(--muted)}ul{padding-left:22px}li{margin:7px 0}footer{color:var(--muted);font-size:12px;border-top:1px solid var(--line);margin-top:30px;padding-top:20px}
+</style></head>
+<body><header><div class="wrap nav"><a class="brand" href="index.html">SchoolServer Security</a><a href="https://github.com/LordLOLQDH/sss">GitHub-Quellcode</a></div></header>
+<main class="wrap"><section class="hero"><div class="eyebrow">Python-Projekt · Windows</div><h1>SSS, ohne EXE.</h1><p class="lead">SSS besteht aus Python-Dateien. Kein Installer, keine EXE. Der Quellcode wird heruntergeladen, gestartet und direkt über GitHub aktualisiert.</p></section>
+<section class="panel"><div class="eyebrow">Aktueller Quellstand</div><div class="version" id="version">SSS 2.1.0</div><p class="muted" id="status">Versionsstand wird geladen …</p><a class="btn" href="https://github.com/LordLOLQDH/sss/archive/refs/heads/main.zip">Python-Dateien herunterladen (.ZIP)</a><a class="btn alt" href="https://github.com/LordLOLQDH/sss">Repository öffnen</a><p class="muted">Das ZIP enthält Python-Dateien, Startskript, Assets und requirements.txt. Python 3.10+ muss installiert sein.</p></section>
+<section class="panel"><h2>Starten</h2><ol><li>ZIP entpacken in einen eigenen Ordner.</li><li><strong>Start-SSS.bat</strong> doppelklicken. Sie erstellt bei Bedarf die virtuelle Umgebung und installiert fehlende Bibliotheken.</li><li>Beim ersten Start den Einrichtungsdialog abschließen.</li><li>Updates können in SSS über <strong>Updates</strong> geprüft und installiert werden.</li></ol></section>
+<section class="panel"><h2>Was steckt drin?</h2><ul><li>Lokale Datei-Prüfung mit SHA-256</li><li>Quarantäne mit Bestätigung und Wiederherstellung</li><li>Optionale Ollama-KI-Erklärungen, lokal auf dem Gerät</li><li>Python-Quellcode-Updater, der nach dem Schließen aktualisiert und SSS neu startet</li><li>Logs und Einstellungen</li></ul><p class="muted">SSS ist ein Prototyp und kein zertifizierter Virenschutz. Ergebnisse sind unvollständig und können Fehlalarme enthalten.</p></section>
+<footer>SSS · <a href="https://github.com/LordLOLQDH/sss/actions">Quellcode-Prüfstatus</a> · <a href="https://github.com/LordLOLQDH/sss/releases">Releases</a></footer></main>
+<script>fetch("version.json?cache="+Date.now()).then(r=>r.ok?r.json():Promise.reject()).then(v=>{document.getElementById("version").textContent="SSS "+v.version;document.getElementById("status").textContent=v.notes||"Aktueller Python-Quellcode";}).catch(()=>document.getElementById("status").textContent="Version 2.1.0 · Quellcode-ZIP direkt vom Repository.");</script></body></html>
