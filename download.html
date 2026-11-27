@@ -17,14 +17,14 @@
 <section class="hero"><div class="eyebrow">SSS Desktop · Windows</div><h1>SSS. Direkt starten.</h1><p class="lead">Kein Installationsassistent und kein Setup-Programm. Lade das Programm als ZIP herunter, entpacke es und starte SSS. Beim ersten Start richtet dich ein geführter Assistent ein.</p></section>
 <section class="download">
 <div class="top"><div class="eyebrow">Aktuelle Windows-Version</div><span class="pill">Portable ZIP · kein Installer</span></div>
-<div class="version">SchoolServer Security</div>
+<div class="version" id="version">SSS 2.0.2</div><div id="release-name" class="muted" style="font-size:13px;font-weight:700">Windows Desktop · aktuelle Quellversion</div>
 <p class="muted">Windows 10/11 · 64-Bit · eigenständige Desktop-App · Profil und Einstellungen bleiben lokal auf deinem Gerät.</p>
-<a class="btn" href="https://github.com/LordLOLQDH/sss/releases/download/latest/SSS-Windows.zip">SSS für Windows herunterladen</a>
-<p class="small">Der Download wird nach dem erfolgreichen Windows-Build auf GitHub bereitgestellt. Falls noch kein Paket veröffentlicht ist, ist der erste Build noch nicht fertig. Die App ist derzeit ein Entwicklungsprojekt und kein zertifizierter Virenschutz.</p>
+<div id="download-status" role="status" style="margin-top:16px;padding:13px 15px;border-radius:12px;background:#fff4df;color:#9a5b12;font-weight:700">Prüfe, ob das aktuelle Downloadpaket veröffentlicht wurde …</div><a class="btn" id="download-button" href="https://github.com/LordLOLQDH/sss/actions">Buildstatus ansehen</a>
+<p class="small">Die Website prüft automatisch, ob die aktuelle Windows-ZIP wirklich veröffentlicht wurde. Der Download-Button wird erst dann freigeschaltet. Die App ist derzeit ein Entwicklungsprojekt und kein zertifizierter Virenschutz.</p>
 </section>
 <div class="eyebrow">Was beim ersten Start passiert</div>
 <div class="grid">
-<article class="card"><div class="number">01 · PROFIL</div><h3>Schule und Gerät</h3><p>Du gibst deinen Namen an. Schule und Gerätename sind freiwillig. Eine Rolle wird nicht abgefragt; intern ist „IT Manager“ voreingestellt.</p></article>
+<article class="card"><div class="number">01 · PROFIL</div><h3>Schule und Gerät</h3><p>Du gibst deinen Namen an. Schule und Gerätename sind freiwillig. Eine Rolle wird nicht abgefragt.</p></article>
 <article class="card"><div class="number">02 · KI</div><h3>KI verbinden</h3><p>Der Assistent zeigt dir optional, wie du Ollama installierst und die lokale Verbindung testest. Du kannst diesen Schritt überspringen.</p></article>
 <article class="card"><div class="number">03 · ORDNER</div><h3>Scan einrichten</h3><p>Wähle deine Ordner, lege ausgeschlossene Pfade fest und bestimme das Prüfintervall. Danach öffnet sich die SSS-Oberfläche.</p></article>
 </div>
@@ -40,5 +40,44 @@
 <p><strong>Wichtig:</strong> SSS scannt lokal und führt untersuchte Dateien nicht aus. Ergebnisse können falsch-positiv oder unvollständig sein. Auf Schulgeräten nur mit Freigabe der zuständigen IT verwenden.</p>
 </section>
 </main>
-<footer><div class="wrap">SchoolServer Security · SSS · by Adam Gabriel Kraus</div></footer>
+<footer><div class="wrap">SchoolServer Security · SSS · <a href="https://github.com/LordLOLQDH/sss/releases">Alle Releases</a> · <a href="https://github.com/LordLOLQDH/sss/actions">Buildstatus</a></div></footer>
+
+<script>
+(async function () {
+  const versionNode = document.getElementById("version");
+  const statusNode = document.getElementById("download-status");
+  const button = document.getElementById("download-button");
+  const releaseName = document.getElementById("release-name");
+  const details = document.querySelector(".download .muted");
+  try {
+    const [v, r] = await Promise.all([
+      fetch("version.json?ts=" + Date.now(), {cache:"no-store"}),
+      fetch("https://api.github.com/repos/LordLOLQDH/sss/releases/tags/latest", {headers:{"Accept":"application/vnd.github+json"},cache:"no-store"})
+    ]);
+    if (v.ok) {
+      const data = await v.json();
+      versionNode.textContent = "SSS " + (data.version || "2.0.2");
+    }
+    if (!r.ok) throw new Error("Release nicht verfügbar");
+    const release = await r.json();
+    const asset = (release.assets || []).find(x => x.name === "SSS-Windows.zip" && x.state === "uploaded" && x.size > 100000);
+    if (!asset) throw new Error("Windows-Paket fehlt");
+    button.href = asset.browser_download_url;
+    button.textContent = versionNode.textContent + " für Windows herunterladen";
+    button.style.background = "#16884b";
+    statusNode.textContent = "Download verfügbar · aktualisiert " + new Date(asset.updated_at).toLocaleString("de-DE", {dateStyle:"medium",timeStyle:"short"});
+    statusNode.style.background = "#e8f5ed";
+    statusNode.style.color = "#16884b";
+    releaseName.textContent = "Veröffentlichtes Windows-Release";
+    details.textContent = "SSS-Windows.zip · " + (asset.size / 1048576).toFixed(1).replace(".", ",") + " MB · Enthält SSS.exe";
+  } catch (_) {
+    button.href = "https://github.com/LordLOLQDH/sss/actions";
+    button.textContent = "Buildstatus ansehen";
+    button.style.background = "#718078";
+    statusNode.textContent = "Version 2.0.2 wird gerade als Windows-App gebaut. Der Download erscheint hier automatisch, sobald die neue ZIP-Datei veröffentlicht ist.";
+    releaseName.textContent = "Neuer Windows-Build in Arbeit";
+    details.textContent = "Geplante Version 2.0.2 · Das neue Downloadpaket ist noch nicht bestätigt verfügbar.";
+  }
+})();
+</script>
 </body></html>
