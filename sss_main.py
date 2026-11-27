@@ -88,6 +88,7 @@ def ai_explain(result,model=DEFAULT_MODEL):
   return {"ok":bool(answer),"text":answer,"error":"Ollama lieferte eine leere Antwort." if not answer else ""}
  except Exception as e:return {"ok":False,"error":"KI-Anfrage fehlgeschlagen: "+str(e)}
 def update_check(current):
+ logger.info("UPDATEPRÜFUNG GESTARTET | Installiert=%s",current)
  try:
   req=urllib.request.Request("https://raw.githubusercontent.com/LordLOLQDH/sss/main/version.json",headers={"User-Agent":"SSS-Updater"})
   with urllib.request.urlopen(req,timeout=15) as response:meta=json.loads(response.read())
@@ -95,24 +96,12 @@ def update_check(current):
   def ver(v):
    try:return tuple(int(x) for x in v.split("."))
    except:return (0,)
-  return {"ok":True,"latest":latest,"update_available":ver(latest)>ver(current),"notes":meta.get("notes","")}
- except Exception as e:return {"ok":False,"error":"GitHub nicht erreichbar: "+str(e)}
-def install_update():
- try:
-  base="https://raw.githubusercontent.com/LordLOLQDH/sss/main/"
-  req=urllib.request.Request(base+"sss_gui.py",headers={"User-Agent":"SSS-Updater"})
-  with urllib.request.urlopen(req,timeout=30) as response:new_code=response.read()
-  if not new_code.startswith(b"#!/usr/bin/env python3"):raise RuntimeError("Die heruntergeladene Hauptdatei ist ungültig.")
-  target=Path(__file__).resolve();backup=target.with_suffix(".py.backup")
-  temp=target.with_suffix(".py.update")
-  backup.write_bytes(target.read_bytes());temp.write_bytes(new_code);os.replace(temp,target)
-  try:
-   req=urllib.request.Request(base+"version.json",headers={"User-Agent":"SSS-Updater"})
-   with urllib.request.urlopen(req,timeout=15) as response:version_data=response.read()
-   (ROOT/"SSS_Data"/"version.json").write_bytes(version_data)
-  except Exception:pass
-  return {"ok":True,"message":"Update installiert. Bitte SSS schließen und anschließend sss_gui.py erneut starten. Backup: "+str(backup)}
- except Exception as e:return {"ok":False,"error":"Update fehlgeschlagen: "+str(e)}
+  available=ver(latest)>ver(current)
+  logger.info("UPDATEPRÜFUNG BEENDET | Installiert=%s | Neueste=%s | Verfügbar=%s",current,latest,available)
+  return {"ok":True,"latest":latest,"update_available":available,"notes":meta.get("notes","")}
+ except Exception as e:
+  logger.exception("UPDATEPRÜFUNG FEHLGESCHLAGEN")
+  return {"ok":False,"error":"GitHub nicht erreichbar: "+str(e)}
 CONFIG=DATA_DIR/"settings.json"
 LOGFILE=DATA_DIR/"sss.log"
 DATA_DIR.mkdir(parents=True,exist_ok=True)
