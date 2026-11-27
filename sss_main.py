@@ -103,6 +103,7 @@ CONFIG=DATA_DIR/"settings.json"
 LOGFILE=DATA_DIR/"sss.log"
 CACHEFILE=DATA_DIR/"scan_cache.json"
 DATA_DIR.mkdir(parents=True,exist_ok=True)
+QUARANTINE.mkdir(parents=True,exist_ok=True)
 logger=logging.getLogger("SSS")
 logger.setLevel(logging.INFO)
 logger.propagate=False
@@ -241,6 +242,8 @@ def set_autostart(enabled):
 def register_windows_app():
  if os.name!="nt":return
  _make_shortcut(PROGRAMS_DIR/"SchoolServer Security.lnk",_python_gui(),'"'+str(Path(__file__).resolve())+'"')
+ manager=ROOT/"SSS_Data"/"tools"/"sss_manager.py"
+ if manager.is_file():_make_shortcut(PROGRAMS_DIR/"SchoolServer Security Manager.lnk",_python_gui(),'"'+str(manager)+'"')
  try:
   import winreg
   with winreg.CreateKey(winreg.HKEY_CURRENT_USER,r"Software\Microsoft\Windows\CurrentVersion\Uninstall\SchoolServerSecurity") as key:
