@@ -10,6 +10,9 @@ from PySide6.QtWidgets import *
 import hashlib,re,urllib.request,urllib.error
 APP_NAME="SchoolServer Security"
 ROOT=Path(__file__).resolve().parent
+APP_DIR=Path(os.environ.get("LOCALAPPDATA",str(Path.home()))) / "Programs" / APP_NAME
+STARTUP_DIR=Path(os.environ.get("APPDATA",str(Path.home()))) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup"
+PROGRAMS_DIR=Path(os.environ.get("APPDATA",str(Path.home()))) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
 DATA_DIR=Path(os.environ.get("LOCALAPPDATA",str(Path.home())))/"SchoolServer Security"
 QUARANTINE=DATA_DIR/"Quarantine"
 VERSION="2.3.0"
@@ -145,6 +148,14 @@ class PullWorker(QObject):
    p=subprocess.run(["ollama","pull",self.model],capture_output=True,text=True,timeout=900)
    self.done.emit({"ok":p.returncode==0,"output":(p.stdout or "")+"\n"+(p.stderr or "")})
   except Exception as e:self.done.emit({"ok":False,"output":str(e)})
+def bootstrap_install():
+ if os.name!="nt" or ROOT.resolve()==APP_DIR.resolve():return False
+ APP_DIR.mkdir(parents=True,exist_ok=True)
+ shutil.copy2(Path(__file__).resolve(),APP_DIR/"sss_main.py")
+ source=ROOT/"SSS_Data";target=APP_DIR/"SSS_Data"
+ if source.is_dir():shutil.copytree(source,target,dirs_exist_ok=True)
+ subprocess.Popen([sys.executable,str(APP_DIR/"sss_main.py")],cwd=str(APP_DIR),close_fds=True)
+ return True
 def _ps_quote(value):
  return "'" + str(value).replace("'","''") + "'"
 def _make_shortcut(link,target,args=""):
@@ -443,6 +454,7 @@ class Main(QMainWindow):
   layout.addWidget(box);buttons=QHBoxLayout();refresh=QPushButton("Aktualisieren");open_btn=QPushButton("Logdatei öffnen");close=QPushButton("Schließen");buttons.addWidget(refresh);buttons.addWidget(open_btn);buttons.addStretch();buttons.addWidget(close);layout.addLayout(buttons)
   refresh.clicked.connect(lambda:box.setPlainText(LOGFILE.read_text(encoding="utf-8")[-250000:] if LOGFILE.exists() else ""));open_btn.clicked.connect(lambda:QDesktopServices.openUrl(QUrl.fromLocalFile(str(LOGFILE))));close.clicked.connect(d.accept);d.exec()
 if __name__=="__main__":
+ if bootstrap_install():sys.exit(0)
  if os.name=="nt":
   try:register_windows_app()
   except Exception:logging.exception("Windows-Registrierung fehlgeschlagen")
