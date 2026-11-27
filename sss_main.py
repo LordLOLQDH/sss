@@ -17,7 +17,7 @@ STARTUP_DIR=Path(os.environ.get("APPDATA",str(Path.home()))) / "Microsoft" / "Wi
 PROGRAMS_DIR=Path(os.environ.get("APPDATA",str(Path.home()))) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
 DATA_DIR=Path(os.environ.get("LOCALAPPDATA",str(Path.home())))/"SchoolServer Security"
 QUARANTINE=DATA_DIR/"Quarantine"
-VERSION="2.4.7"
+VERSION="2.4.8"
 DEFAULT_MODEL="qwen2.5:3b"
 SCRIPT_EXT={".ps1",".bat",".cmd",".vbs",".js",".py",".hta",".scr",".jse",".vbe"}
 HASH_EXT=SCRIPT_EXT|{".exe",".dll",".sys",".com",".msi"}
@@ -291,9 +291,10 @@ def install_update():
   zip_path=stage/"repo.zip";zip_path.write_bytes(archive)
   extract=stage/"payload";extract.mkdir()
   with zipfile.ZipFile(zip_path) as z:
-   root_name=z.namelist()[0].split("/")[0]
+   roots=[n.split("/")[0] for n in z.namelist() if n]
+   root_name=roots[0] if roots else ""
    for member in z.namelist():
-    rel=member[len(root_name)+1:] if member.startswith(root_name+"/") else ""
+    rel=member[len(root_name)+1:] if root_name and member.startswith(root_name+"/") else ""
     if not rel or not (rel=="sss_main.py" or rel.startswith("SSS_Data/")):continue
     dest=extract/rel
     if member.endswith("/"):dest.mkdir(parents=True,exist_ok=True)
@@ -308,13 +309,16 @@ def install_update():
   quote=lambda x:"'"+str(x).replace("'","''")+"'"
   script="$ErrorActionPreference='Stop'\n$log="+quote(log_path)+"\nNew-Item -ItemType Directory -Force -Path (Split-Path -Parent $log) | Out-Null\nfunction Log($m){Add-Content -LiteralPath $log -Value ((Get-Date -Format 'yyyy-MM-dd HH:mm:ss')+' | '+$m)}\n"
   script+="try {\nLog 'Updater gestartet; warte auf das Ende von SSS.'\n$pidToWait="+str(os.getpid())+"\n$deadline=(Get-Date).AddSeconds(90)\nwhile(Get-Process -Id $pidToWait -ErrorAction SilentlyContinue){if((Get-Date) -gt $deadline){throw 'SSS wurde nicht innerhalb von 90 Sekunden beendet.'};Start-Sleep -Milliseconds 500}\n"
-  script+="$root="+quote(ROOT)+"\n$source="+quote(extract)+"\n$mainTarget=Join-Path $root 'sss_main.py'\n$backup=Join-Path $root 'sss_main.py.previous'\nif(Test-Path $mainTarget){Copy-Item -LiteralPath $mainTarget -Destination $backup -Force}\nCopy-Item -LiteralPath (Join-Path $source 'sss_main.py') -Destination ($mainTarget+'.new') -Force\nMove-Item -LiteralPath ($mainTarget+'.new') -Destination $mainTarget -Force\nLog 'Hauptprogramm aktualisiert.'\n"
-  script+="$sourceData=Join-Path $source 'SSS_Data'\n$targetData=Join-Path $root 'SSS_Data'\nNew-Item -ItemType Directory -Force -Path $targetData | Out-Null\nforeach($name in @('assets','modules','tools','demo_test_files')){$from=Join-Path $sourceData $name;if(Test-Path $from){$to=Join-Path $targetData $name;New-Item -ItemType Directory -Force -Path $to | Out-Null;Get-ChildItem -LiteralPath $from -Recurse -File | ForEach-Object {$relative=$_.FullName.Substring($from.Length).TrimStart('\\');$dest=Join-Path $to $relative;$parent=Split-Path -Parent $dest;New-Item -ItemType Directory -Force -Path $parent | Out-Null;Copy-Item -LiteralPath $_.FullName -Destination $dest -Force}}}\nCopy-Item -LiteralPath (Join-Path $sourceData 'version.json') -Destination (Join-Path $targetData 'version.json') -Force\nLog 'Programmdateien aktualisiert; Einstellungen, Logs und Quarantäne wurden beibehalten.'\n"
-  script+="$python="+quote(_python_gui())+"\n$app=Join-Path $root 'sss_main.py'\n$proc=Start-Process -FilePath $python -ArgumentList ('\"'+$app+'\"') -WorkingDirectory $root -PassThru\nStart-Sleep -Seconds 2\nif(-not (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue)){throw 'Der neue SSS-Prozess wurde gestartet, ist aber sofort wieder beendet worden.'}\nLog ('Neustart erfolgreich; PID='+$proc.Id)\n} catch {Log ('FEHLER: '+$_.Exception.Message);exit 1}\n";
+  script+="$root="+quote(ROOT)+"\n$source="+quote(extract)+"\n$parent=Split-Path -Parent $root\n$leaf=Split-Path -Leaf $root\n$tag=[Guid]::NewGuid().ToString('N')\n$replacement=Join-Path $parent ($leaf+'.replacement-'+$tag)\n$backup=Join-Path $parent ($leaf+'.backup-'+$tag)\n"
+  script+="New-Item -ItemType Directory -Force -Path $replacement | Out-Null\nCopy-Item -Path (Join-Path $source '*') -Destination $replacement -Recurse -Force\n"
+  script+="if(Test-Path -LiteralPath $root){Move-Item -LiteralPath $root -Destination $backup}\ntry {Move-Item -LiteralPath $replacement -Destination $root} catch {if(Test-Path -LiteralPath $backup){Move-Item -LiteralPath $backup -Destination $root};throw}\n"
+  script+="Log 'Alte Programmdateien vollständig ersetzt; nur die frische Version liegt im Installationsordner.'\n"
+  script+="$python="+quote(_python_gui())+"\n$app=Join-Path $root 'sss_main.py'\ntry {$proc=Start-Process -FilePath $python -ArgumentList ('\"'+$app+'\"') -WorkingDirectory $root -PassThru;Start-Sleep -Seconds 3;if(-not (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue)){throw 'Die neue Version wurde gestartet, ist aber sofort wieder beendet worden.'}} catch {if(Test-Path -LiteralPath $root){Remove-Item -LiteralPath $root -Recurse -Force};if(Test-Path -LiteralPath $backup){Move-Item -LiteralPath $backup -Destination $root};throw}\n"
+  script+="Log ('Neue Version gestartet; PID='+$proc.Id)\nif(Test-Path -LiteralPath $backup){Remove-Item -LiteralPath $backup -Recurse -Force -ErrorAction SilentlyContinue}\nif(Test-Path -LiteralPath $replacement){Remove-Item -LiteralPath $replacement -Recurse -Force -ErrorAction SilentlyContinue}\n} catch {Log ('FEHLER: '+$_.Exception.Message);exit 1}\n"
   ps.write_text(script,encoding="utf-8")
   subprocess.Popen(["powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-WindowStyle","Hidden","-File",str(ps)],creationflags=getattr(subprocess,"CREATE_NEW_PROCESS_GROUP",0x200),close_fds=True)
   logger.info("Updater-Prozess gestartet; Logdatei: %s",log_path)
-  return {"ok":True,"message":"Update vorbereitet. SSS wird geschlossen, aktualisiert und anschließend neu gestartet. Falls etwas fehlschlägt, steht der genaue Fehler in updater.log."}
+  return {"ok":True,"message":"Update vorbereitet. SSS wird geschlossen. Der Installationsordner wird vollständig durch die neue Version ersetzt; Einstellungen, Logs und Quarantäne bleiben erhalten. Anschließend startet die neue Version."}
  except Exception as e:
   logger.exception("Updater konnte nicht gestartet werden")
   return {"ok":False,"error":"Update fehlgeschlagen: "+str(e)}
