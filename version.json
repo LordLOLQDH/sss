@@ -1,6 +1,6 @@
 {
   "name": "SchoolServer Security",
-  "version": "3.0",
+  "version": "3.1",
   "channel": "stable",
-  "notes": "SSS 3.0 bringt ein überarbeitetes Dashboard mit sanften grünen Farbverläufen, klarerer Typografie, feineren Karten, verbesserten Tabellen und dezenten Hover-Effekten. Bestehende Scan-, KI-, Quarantäne- und Update-Funktionen bleiben erhalten."
+  "notes": "SSS 3.1 verfeinert die kritische-Dateien-Ansicht: ausschließlich Critical-Dateien werden angezeigt; bei leerem Ergebnis bleiben Verlauf und Tabelle leer und das transparente SSS-Wasserzeichen liegt über dem grünen Verlauf. Benachrichtigungsdialoge wurden optisch an das helle Design angepasst. Keine Funktionsänderungen am Scan, an der KI, Quarantäne oder am Updateprozess."
 }
