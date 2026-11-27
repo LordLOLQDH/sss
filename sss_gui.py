@@ -160,4 +160,8 @@ class Main(QMainWindow):
    self.c.update({"scan_dirs":[x.strip() for x in dirs.toPlainText().splitlines() if x.strip()],"excluded_dirs":[x.strip() for x in exclude.toPlainText().splitlines() if x.strip()],"interval_minutes":interval.value(),"max_file_mb":size.value(),"ai_enabled":enabled.isChecked(),"ai_model":model.text().strip() or DEFAULT_MODEL});save_cfg(self.c);self.next=time.monotonic()+self.c["interval_minutes"]*60;d.accept()
   save.clicked.connect(save);d.exec()
 if __name__=="__main__":
- app=QApplication(sys.argv);app.setApplicationName(APP_NAME);app.setFont(QFont("Segoe UI",10));w=Main();w.show();sys.exit(app.exec())
+ app=QApplication(sys.argv);app.setApplicationName(APP_NAME);app.setFont(QFont("Segoe UI",10))
+ from sss_setup import run_first_setup, read_config
+ if not read_config().get("profile_completed"):
+  if not run_first_setup():sys.exit(0)
+ w=Main();w.show();sys.exit(app.exec())
