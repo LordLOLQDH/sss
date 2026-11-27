@@ -205,7 +205,7 @@ def install_update():
   quote=lambda x:"'"+str(x).replace("'","''")+"'"
   script="$ErrorActionPreference='Stop'\n$pidToWait="+str(os.getpid())+"\nwhile(Get-Process -Id $pidToWait -ErrorAction SilentlyContinue){Start-Sleep -Milliseconds 700}\n"
   script+="Copy-Item -LiteralPath "+quote(extract/"sss_main.py")+" -Destination "+quote(ROOT/"sss_main.py")+" -Force\n"
-  script+="Copy-Item -Path "+quote(extract/"SSS_Data")+"'\\*' -Destination "+quote(ROOT/"SSS_Data")+" -Recurse -Force\n"
+  script+="$srcData = "+quote(extract/"SSS_Data")+"\n$dstData = "+quote(ROOT/"SSS_Data")+"\nif(!(Test-Path $dstData)){New-Item -ItemType Directory -Force -Path $dstData | Out-Null}\nCopy-Item -Path (Join-Path $srcData '*') -Destination $dstData -Recurse -Force\n"
   script+="Start-Process -FilePath "+quote(sys.executable)+" -ArgumentList "+quote(ROOT/"sss_main.py")+"\n"
   ps.write_text(script,encoding="utf-8")
   subprocess.Popen(["powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File",str(ps)],creationflags=getattr(subprocess,"CREATE_NEW_PROCESS_GROUP",0x200),close_fds=True)
@@ -241,7 +241,7 @@ class Main(QMainWindow):
   self.build();self.tick_timer=QTimer(self);self.tick_timer.timeout.connect(self.tick);self.tick_timer.start(1000);QTimer.singleShot(1000,self.check_ai);QTimer.singleShot(2500,self.scan)
  def build(self):
   central=QWidget();self.setCentralWidget(central);l=QVBoxLayout(central);l.setContentsMargins(26,22,26,22);l.setSpacing(15)
-  header=QHBoxLayout();logo=QLabel();logo_path=Path(__file__).resolve().parent/"assets"/"Sicherheits-Schild mit Servern und Schloss.png"
+  header=QHBoxLayout();logo=QLabel();logo_path=Path(__file__).resolve().parent/"SSS_Data"/"assets"/"Sicherheits-Schild mit Servern und Schloss.png"
   if logo_path.exists():
    pix=QPixmap(str(logo_path))
    if not pix.isNull():logo.setPixmap(pix.scaled(54,54,Qt.KeepAspectRatio,Qt.SmoothTransformation))
