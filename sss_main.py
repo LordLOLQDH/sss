@@ -87,7 +87,7 @@ def ai_explain(result,model=DEFAULT_MODEL):
 def update_check(current):
  logger.info("UPDATEPRÜFUNG GESTARTET | Installiert=%s",current)
  try:
-  req=urllib.request.Request("https://raw.githubusercontent.com/LordLOLQDH/sss/main/version.json",headers={"User-Agent":"SSS-Updater"})
+  req=urllib.request.Request("https://raw.githubusercontent.com/LordLOLQDH/sss/main/version.json?cache="+str(int(time.time())),headers={"User-Agent":"SSS-Updater","Cache-Control":"no-cache","Pragma":"no-cache"})
   with urllib.request.urlopen(req,timeout=15) as response:meta=json.loads(response.read())
   latest=str(meta.get("version","0"))
   def ver(v):
@@ -280,13 +280,13 @@ def register_windows_app():
    winreg.SetValueEx(key,"DisplayVersion",0,winreg.REG_SZ,VERSION)
    winreg.SetValueEx(key,"InstallLocation",0,winreg.REG_SZ,str(ROOT))
  except Exception:logger.exception("Windows-App-Registrierung fehlgeschlagen")
-def install_update():
+def install_update(expected_version):
  try:
   import zipfile,tempfile
   if os.name!="nt":raise RuntimeError("Der automatische Austausch wird derzeit nur unter Windows unterstützt.")
   stage=Path(tempfile.mkdtemp(prefix="sss_update_"))
   log_path=DATA_DIR/"updater.log"
-  payload=urllib.request.Request("https://github.com/LordLOLQDH/sss/archive/refs/heads/main.zip",headers={"User-Agent":"SchoolServer-Security-Updater"})
+  payload=urllib.request.Request("https://github.com/LordLOLQDH/sss/archive/refs/heads/main.zip?cache="+str(int(time.time())),headers={"User-Agent":"SchoolServer-Security-Updater","Cache-Control":"no-cache"})
   with urllib.request.urlopen(payload,timeout=120) as response:archive=response.read()
   zip_path=stage/"repo.zip";zip_path.write_bytes(archive)
   extract=stage/"payload";extract.mkdir()
@@ -303,13 +303,18 @@ def install_update():
      with z.open(member) as src,dest.open("wb") as out:shutil.copyfileobj(src,out)
   if not (extract/"sss_main.py").is_file() or not (extract/"SSS_Data"/"version.json").is_file():
    raise RuntimeError("Das Update-Archiv ist unvollständig. Die bestehende Installation bleibt unverändert.")
+  bundled=json.loads((extract/"SSS_Data"/"version.json").read_text(encoding="utf-8"))
+  source_text=(extract/"sss_main.py").read_text(encoding="utf-8")
+  embedded=re.search(r'^VERSION=["\']([^"\']+)["\']',source_text,re.M)
+  if not embedded or embedded.group(1)!=str(expected_version) or str(bundled.get("version"))!=str(expected_version):
+   raise RuntimeError("Das heruntergeladene Update enthält nicht die erwartete Version "+str(expected_version)+". Die bestehende Installation bleibt unverändert.")
   check=subprocess.run([sys.executable,"-m","py_compile",str(extract/"sss_main.py")],capture_output=True,text=True)
   if check.returncode:raise RuntimeError("Die neue Hauptdatei besteht die Python-Syntaxprüfung nicht: "+check.stderr)
   ps=stage/"apply.ps1"
   quote=lambda x:"'"+str(x).replace("'","''")+"'"
   script="$ErrorActionPreference='Stop'\n$log="+quote(log_path)+"\nNew-Item -ItemType Directory -Force -Path (Split-Path -Parent $log) | Out-Null\nfunction Log($m){Add-Content -LiteralPath $log -Value ((Get-Date -Format 'yyyy-MM-dd HH:mm:ss')+' | '+$m)}\n"
   script+="try {\nLog 'Updater gestartet; warte auf das Ende von SSS.'\n$pidToWait="+str(os.getpid())+"\n$deadline=(Get-Date).AddSeconds(90)\nwhile(Get-Process -Id $pidToWait -ErrorAction SilentlyContinue){if((Get-Date) -gt $deadline){throw 'SSS wurde nicht innerhalb von 90 Sekunden beendet.'};Start-Sleep -Milliseconds 500}\n"
-  script+="$root="+quote(ROOT)+"\n$source="+quote(extract)+"\n$parent=Split-Path -Parent $root\n$leaf=Split-Path -Leaf $root\n$tag=[Guid]::NewGuid().ToString('N')\n$replacement=Join-Path $parent ($leaf+'.replacement-'+$tag)\n$backup=Join-Path $parent ($leaf+'.backup-'+$tag)\n"
+  script+="$root="+quote(APP_DIR)+"\n$source="+quote(extract)+"\n$parent=Split-Path -Parent $root\n$leaf=Split-Path -Leaf $root\n$tag=[Guid]::NewGuid().ToString('N')\n$replacement=Join-Path $parent ($leaf+'.replacement-'+$tag)\n$backup=Join-Path $parent ($leaf+'.backup-'+$tag)\n"
   script+="New-Item -ItemType Directory -Force -Path $replacement | Out-Null\nCopy-Item -Path (Join-Path $source '*') -Destination $replacement -Recurse -Force\n"
   script+="if(Test-Path -LiteralPath $root){Move-Item -LiteralPath $root -Destination $backup}\ntry {Move-Item -LiteralPath $replacement -Destination $root} catch {if(Test-Path -LiteralPath $backup){Move-Item -LiteralPath $backup -Destination $root};throw}\n"
   script+="Log 'Alte Programmdateien vollständig ersetzt; nur die frische Version liegt im Installationsordner.'\n"
@@ -542,7 +547,7 @@ class Main(QMainWindow):
    self.status.setText("Update verfügbar · Installation nicht bestätigt")
    return
   logger.info("Updateinstallation vom Benutzer ausdrücklich bestätigt: %s",latest)
-  download=install_update()
+  download=install_update(latest)
   if download.get("ok"):
    logger.info("Updater gestartet: %s",download.get("message",""))
    QMessageBox.information(self,"Updater",download.get("message","Update wird vorbereitet."));self.close();QTimer.singleShot(500,QApplication.quit)
