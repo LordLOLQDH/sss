@@ -238,7 +238,7 @@ class Main(QMainWindow):
   logo_icon=Path(__file__).resolve().parent/"SSS_Data"/"assets"/"Sicherheits-Schild mit Servern und Schloss.png"
   if logo_icon.exists():self.setWindowIcon(QIcon(str(logo_icon)))
   logger.info("Programmstart Version %s",VERSION);self.setMinimumSize(900,620);self.setStyleSheet(STYLE)
-  self.build();self.tick_timer=QTimer(self);self.tick_timer.timeout.connect(self.tick);self.tick_timer.start(1000);QTimer.singleShot(1000,self.check_ai);QTimer.singleShot(2500,self.scan)
+  self.build();self.tick_timer=QTimer(self);self.tick_timer.timeout.connect(self.tick);self.tick_timer.start(1000);QTimer.singleShot(1000,self.check_ai);QTimer.singleShot(2500,self.scan);QTimer.singleShot(7000,self.check_updates)
  def build(self):
   central=QWidget();self.setCentralWidget(central);l=QVBoxLayout(central);l.setContentsMargins(26,22,26,22);l.setSpacing(15)
   header=QHBoxLayout();logo=QLabel();logo_path=Path(__file__).resolve().parent/"SSS_Data"/"assets"/"Sicherheits-Schild mit Servern und Schloss.png"
