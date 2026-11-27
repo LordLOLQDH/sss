@@ -102,6 +102,7 @@ def update_check(current):
 CONFIG=DATA_DIR/"settings.json"
 LOGFILE=DATA_DIR/"sss.log"
 CACHEFILE=DATA_DIR/"scan_cache.json"
+RESTORED_FILE=DATA_DIR/"restored_files.json"
 DATA_DIR.mkdir(parents=True,exist_ok=True)
 QUARANTINE.mkdir(parents=True,exist_ok=True)
 logger=logging.getLogger("SSS")
@@ -113,6 +114,18 @@ if not logger.handlers:
  logger.addHandler(handler)
 DEFAULT={"scan_dirs":[str(Path.home()/"Downloads"),str(Path.home()/"Desktop")],"excluded_dirs":[],"interval_minutes":10,"max_file_mb":200,"ai_enabled":True,"ai_model":DEFAULT_MODEL,"quarantine_extensions":[],"ai_auto_quarantine":False,"ai_quarantine_threshold":95}
 STYLE="""QWidget{background:#f4f7f6;color:#172b22;font-family:'Segoe UI';font-size:13px} QFrame#card{background:white;border:1px solid #dfe8e2;border-radius:14px} QPushButton{background:white;border:1px solid #dfe8e2;border-radius:9px;padding:9px 13px;font-weight:600} QPushButton:hover{background:#edf5ef} QPushButton#primary{background:#159653;color:white;border-color:#159653} QTableWidget{background:white;border:1px solid #dfe8e2;border-radius:12px;selection-background-color:#e7f4eb} QHeaderView::section{background:#f8faf9;border:0;padding:10px;color:#718078;font-weight:700}"""
+def load_restored_files():
+ try:
+  data=json.loads(RESTORED_FILE.read_text(encoding="utf-8")) if RESTORED_FILE.exists() else {}
+  return data if isinstance(data,dict) else {}
+ except Exception:
+  logger.exception("Freigabeliste konnte nicht gelesen werden")
+  return {}
+def save_restored_files(data):
+ DATA_DIR.mkdir(parents=True,exist_ok=True)
+ temp=RESTORED_FILE.with_suffix(".tmp")
+ temp.write_text(json.dumps(data,indent=2,ensure_ascii=False),encoding="utf-8")
+ temp.replace(RESTORED_FILE)
 def load_cfg():
  DATA_DIR.mkdir(parents=True,exist_ok=True)
  try:return {**DEFAULT,**json.loads(CONFIG.read_text(encoding="utf-8"))}
@@ -166,10 +179,21 @@ class ScanWorker(QObject):
   try:cache=json.loads(CACHEFILE.read_text(encoding="utf-8")) if CACHEFILE.exists() else {}
   except Exception:cache={}
   next_cache={}
+  restored=load_restored_files()
+  restored_changed=False
   rules={str(x).strip().lower() if str(x).strip().startswith(".") else "."+str(x).strip().lower() for x in self.c.get("quarantine_extensions",[]) if str(x).strip()}
   for p in iter_files(self.c["scan_dirs"],self.c.get("excluded_dirs",[])):
    try:
     st=p.stat();key=str(p.resolve());signature=[st.st_size,st.st_mtime_ns]
+    trusted=False
+    saved_hash=restored.get(key)
+    if saved_hash:
+     current_hash=sha256(p)
+     if current_hash==saved_hash:
+      trusted=True
+     else:
+      restored.pop(key,None);restored_changed=True
+      logger.info("Freigabe aufgehoben, Dateiinhalt geändert: %s",p)
     previous=cache.get(key,{})
     if previous.get("signature")==signature and isinstance(previous.get("result"),dict):
      result=dict(previous["result"]);result["elapsed"]=0.0;result["cached"]=True;next_cache[key]=previous
@@ -178,7 +202,11 @@ class ScanWorker(QObject):
      if "size" in result:next_cache[key]={"signature":signature,"result":result}
    except OSError:
     result=inspect(p,int(self.c["max_file_mb"]))
-   if p.suffix.lower() in rules:
+   if trusted:
+    result["restored_and_trusted"]=True
+    result["trust_status"]="Wiederhergestellt und freigegeben (SHA-256 unverändert)"
+    result.setdefault("reasons",[]).append("Nicht erneut automatisch isoliert: Datei wurde bewusst wiederhergestellt und ihr Inhalt ist unverändert.")
+   elif p.suffix.lower() in rules:
     result=quarantine_file(result,"Dateiendungs-Regel "+p.suffix.lower())
    elif not result.get("cached") and self.c.get("ai_enabled",True) and self.c.get("ai_auto_quarantine",False) and result.get("risk") in ("Critical","Review"):
     assessment=ai_assess(result,self.c.get("ai_model",DEFAULT_MODEL));result["ai_assessment"]=assessment
@@ -189,6 +217,7 @@ class ScanWorker(QObject):
      logger.info("KI-Bewertung | %s | %s",result.get("path"),json.dumps(assessment,ensure_ascii=False))
    rows.append(result)
   try:
+   if restored_changed:save_restored_files(restored)
    CACHEFILE.parent.mkdir(parents=True,exist_ok=True)
    temp=CACHEFILE.with_suffix(".tmp");temp.write_text(json.dumps(next_cache,ensure_ascii=False),encoding="utf-8");temp.replace(CACHEFILE)
   except Exception:logger.exception("Scan-Cache konnte nicht gespeichert werden")
@@ -395,9 +424,14 @@ class Main(QMainWindow):
    if QMessageBox.question(d,"Wiederherstellen",f"Datei an den ursprünglichen Ort zurückverschieben?\n\n{original}")!=QMessageBox.Yes:return
    try:
     original.parent.mkdir(parents=True,exist_ok=True);shutil.move(str(qfile),str(original))
-    if meta.get("sha256") and sha256(original)!=meta["sha256"]:
+    restored_hash=sha256(original)
+    if meta.get("sha256") and restored_hash!=meta["sha256"]:
      shutil.move(str(original),str(qfile));QMessageBox.critical(d,"Hashprüfung fehlgeschlagen","Datei wurde zurück in Quarantäne verschoben.");return
-    qfile.with_suffix(qfile.suffix+".json").unlink(missing_ok=True);QMessageBox.information(d,"SSS","Datei wiederhergestellt.");d.accept()
+    approved=load_restored_files()
+    approved[str(original.resolve())]=restored_hash
+    save_restored_files(approved)
+    logger.info("DATEI WIEDERHERGESTELLT UND FREIGEGEBEN | %s | SHA-256=%s",original,restored_hash)
+    qfile.with_suffix(qfile.suffix+".json").unlink(missing_ok=True);QMessageBox.information(d,"SSS","Datei wiederhergestellt und für künftige Prüfungen freigegeben.");d.accept()
    except Exception as e:QMessageBox.critical(d,"Restore fehlgeschlagen",str(e))
   restore.clicked.connect(do_restore);d.exec()
  def explain(self):
