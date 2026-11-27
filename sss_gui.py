@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 """SSS 2.0 modern GUI. Single supported desktop client."""
-import sys,json,time,threading,shutil,subprocess
+import sys,json,time,threading,shutil,subprocess,logging,os
 from pathlib import Path
 from datetime import datetime
 from PySide6.QtCore import Qt,QObject,Signal,QThread,QTimer
-from PySide6.QtGui import QFont, QDesktopServices, QPixmap
+from PySide6.QtGui import QFont, QDesktopServices, QPixmap, QIcon
 from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import *
 from sss_core import APP_NAME,VERSION,DATA_DIR,QUARANTINE,inspect,iter_files,sha256
 from sss_ai import status as ai_status,explain as ai_explain,DEFAULT_MODEL
 from sss_updater import check as update_check,install_update
 CONFIG=DATA_DIR/"settings.json"
+LOGFILE=DATA_DIR/"sss.log"
+DATA_DIR.mkdir(parents=True,exist_ok=True)
+logging.basicConfig(filename=str(LOGFILE),level=logging.INFO,format="%(asctime)s | %(levelname)s | %(message)s",encoding="utf-8")
+logger=logging.getLogger("SSS")
 DEFAULT={"scan_dirs":[str(Path.home()/"Downloads"),str(Path.home()/"Desktop")],"excluded_dirs":[],"interval_minutes":10,"max_file_mb":200,"ai_enabled":True,"ai_model":DEFAULT_MODEL}
 STYLE="""QWidget{background:#f4f7f6;color:#172b22;font-family:'Segoe UI';font-size:13px} QFrame#card{background:white;border:1px solid #dfe8e2;border-radius:14px} QPushButton{background:white;border:1px solid #dfe8e2;border-radius:9px;padding:9px 13px;font-weight:600} QPushButton:hover{background:#edf5ef} QPushButton#primary{background:#159653;color:white;border-color:#159653} QTableWidget{background:white;border:1px solid #dfe8e2;border-radius:12px;selection-background-color:#e7f4eb} QHeaderView::section{background:#f8faf9;border:0;padding:10px;color:#718078;font-weight:700}"""
 def load_cfg():
@@ -46,7 +50,10 @@ class PullWorker(QObject):
 class Main(QMainWindow):
  def __init__(self):
   super().__init__();self.c=load_cfg();self.rows=[];self.busy=False;self.ai_online=False;self.next=time.monotonic()+self.c["interval_minutes"]*60
-  self.setWindowTitle(f"{APP_NAME} 2.0");self.resize(1180,770);self.setMinimumSize(900,620);self.setStyleSheet(STYLE)
+  self.setWindowTitle(f"{APP_NAME} 2.0");self.resize(1180,770);
+  logo_icon=Path(__file__).resolve().parent/"assets"/"Sicherheits-Schild mit Servern und Schloss.png"
+  if logo_icon.exists():self.setWindowIcon(QIcon(str(logo_icon)))
+  logger.info("Programmstart Version %s",VERSION)self.setMinimumSize(900,620);self.setStyleSheet(STYLE)
   self.build();self.tick_timer=QTimer(self);self.tick_timer.timeout.connect(self.tick);self.tick_timer.start(1000);QTimer.singleShot(1000,self.check_ai);QTimer.singleShot(2500,self.scan)
  def build(self):
   central=QWidget();self.setCentralWidget(central);l=QVBoxLayout(central);l.setContentsMargins(26,22,26,22);l.setSpacing(15)
@@ -55,7 +62,7 @@ class Main(QMainWindow):
    pix=QPixmap(str(logo_path))
    if not pix.isNull():logo.setPixmap(pix.scaled(54,54,Qt.KeepAspectRatio,Qt.SmoothTransformation))
   header.addWidget(logo);titles=QVBoxLayout();titles.setSpacing(1);h=QLabel("SchoolServer Security");h.setStyleSheet("font-size:22px;font-weight:850");sub=QLabel(f"SSS 2.0 · Local Security Engine · {VERSION}");sub.setStyleSheet("color:#718078");titles.addWidget(h);titles.addWidget(sub);header.addLayout(titles);header.addStretch();self.ai_label=QLabel("LOCAL KI · wird geprüft");self.ai_label.setStyleSheet("font-weight:750");header.addWidget(self.ai_label);self.ai_setup_btn=QPushButton("KI einrichten");self.ai_setup_btn.clicked.connect(self.ai_setup);header.addWidget(self.ai_setup_btn);l.addLayout(header)
-  intro=QHBoxLayout();txt=QVBoxLayout();headline=QLabel("Sicherheitsübersicht");headline.setStyleSheet("font-size:27px;font-weight:850");desc=QLabel("Automatische lokale Prüfungen. Dateiaktionen erfolgen nachvollziehbar und mit Bestätigung.");desc.setStyleSheet("color:#718078");txt.addWidget(headline);txt.addWidget(desc);intro.addLayout(txt);intro.addStretch();self.scan_btn=QPushButton("Jetzt prüfen");self.scan_btn.setObjectName("primary");self.scan_btn.clicked.connect(self.scan);intro.addWidget(self.scan_btn);self.settings_btn=QPushButton("Einstellungen");self.settings_btn.clicked.connect(self.settings);intro.addWidget(self.settings_btn);self.update_btn=QPushButton("Updates");self.update_btn.clicked.connect(self.check_updates);intro.addWidget(self.update_btn)
+  intro=QHBoxLayout();txt=QVBoxLayout();headline=QLabel("Sicherheitsübersicht");headline.setStyleSheet("font-size:27px;font-weight:850");desc=QLabel("Automatische lokale Prüfungen. Dateiaktionen erfolgen nachvollziehbar und mit Bestätigung.");desc.setStyleSheet("color:#718078");txt.addWidget(headline);txt.addWidget(desc);intro.addLayout(txt);intro.addStretch();self.scan_btn=QPushButton("Jetzt prüfen");self.scan_btn.setObjectName("primary");self.scan_btn.clicked.connect(self.scan);intro.addWidget(self.scan_btn);self.settings_btn=QPushButton("Einstellungen");self.settings_btn.clicked.connect(self.settings);intro.addWidget(self.settings_btn);self.update_btn=QPushButton("Updates");self.update_btn.clicked.connect(self.check_updates);intro.addWidget(self.update_btn);self.logs_btn=QPushButton("Logs");self.logs_btn.clicked.connect(self.show_logs);intro.addWidget(self.logs_btn)
 
   l.addLayout(intro)
   cards=QHBoxLayout();self.files=self.card("Geprüfte Dateien","—");self.flags=self.card("Auffälligkeiten","—");self.countdown=self.card("Nächste Prüfung","—");self.ai_card=self.card("Lokale KI","Status");[cards.addWidget(x) for x in [self.files,self.flags,self.countdown,self.ai_card]];l.addLayout(cards)
@@ -75,10 +82,11 @@ class Main(QMainWindow):
   self.busy=True;self.scan_btn.setEnabled(False);self.progress.show();self.progress.setRange(0,0);self.status.setText("Prüfung läuft…")
   self.thread=QThread(self);self.worker=ScanWorker(self.c);self.worker.moveToThread(self.thread);self.thread.started.connect(self.worker.run);self.worker.done.connect(self.finished);self.worker.done.connect(self.thread.quit);self.worker.done.connect(self.worker.deleteLater);self.thread.finished.connect(self.thread.deleteLater);self.thread.start()
  def finished(self,rows):
-  self.rows=rows;self.busy=False;self.scan_btn.setEnabled(True);self.progress.hide();self.next=time.monotonic()+self.c["interval_minutes"]*60
+  self.rows=rows;self.busy=False;logger.info("Scan abgeschlossen: %d Dateien",len(rows));self.scan_btn.setEnabled(True);self.progress.hide();self.next=time.monotonic()+self.c["interval_minutes"]*60
   flagged=[x for x in rows if x.get("risk") in ("Critical","Review")];self.files.value.setText(str(len(rows)));self.flags.value.setText(str(len(flagged)));self.status.setText(f"Scan beendet · {len(rows)} Dateien · {len(flagged)} Hinweise")
   self.table.setRowCount(len(rows))
   for i,r in enumerate(rows):
+   logger.info("Ergebnis %s | %s | %s",r.get("risk"),r.get("path"),"; ".join(r.get("reasons",[])))
    values=[r.get("risk","?"),r.get("path",""),r.get("sha256","—"),"; ".join(r.get("reasons",[])) or "Keine Auffälligkeiten"]
    for j,v in enumerate(values):
     item=QTableWidgetItem(str(v));item.setToolTip(str(v))
@@ -95,12 +103,12 @@ class Main(QMainWindow):
   if QMessageBox.question(self,"Datei isolieren",f"Datei wird verschoben, nicht gelöscht.\n\n{src}\n\nWeiter?")!=QMessageBox.Yes:return
   try:
    QUARANTINE.mkdir(parents=True,exist_ok=True);target=QUARANTINE/(src.name+"_"+r.get("sha256","")[:12]+".quarantined")
-   shutil.move(str(src),str(target));metadata={"source":str(src),"target":str(target),"sha256":r.get("sha256"),"risk":r.get("risk"),"reasons":r.get("reasons"),"date":datetime.now().isoformat()}
+   shutil.move(str(src),str(target));logger.warning("Datei isoliert: %s -> %s",src,target);metadata={"source":str(src),"target":str(target),"sha256":r.get("sha256"),"risk":r.get("risk"),"reasons":r.get("reasons"),"date":datetime.now().isoformat()}
    target.with_suffix(target.suffix+".json").write_text(json.dumps(metadata,indent=2,ensure_ascii=False),encoding="utf-8");QMessageBox.information(self,"SSS","Datei in Quarantäne verschoben.");self.scan()
   except Exception as e:QMessageBox.critical(self,"Fehler",str(e))
  def manage_quarantine(self):
   QUARANTINE.mkdir(parents=True,exist_ok=True)
-  d=QDialog(self);d.setWindowTitle("SSS · Quarantäne");d.resize(760,440);layout=QVBoxLayout(d)
+  d=QDialog(self);d.setWindowTitle("SSS · Quarantäne");d.resize(760,440);layout=QVBoxLayout(d);path_label=QLabel("Quarantäne-Ordner: "+str(QUARANTINE));path_label.setWordWrap(True);path_label.setTextInteractionFlags(Qt.TextSelectableByMouse);layout.addWidget(path_label);open_folder=QPushButton("Ordner im Explorer öffnen");open_folder.clicked.connect(lambda:QDesktopServices.openUrl(QUrl.fromLocalFile(str(QUARANTINE))));layout.addWidget(open_folder)
   t=QTableWidget(0,3);t.setHorizontalHeaderLabels(["DATEI","RISIKO","ORIGINALPFAD"]);t.horizontalHeader().setSectionResizeMode(0,QHeaderView.ResizeToContents);t.horizontalHeader().setSectionResizeMode(1,QHeaderView.ResizeToContents);t.horizontalHeader().setSectionResizeMode(2,QHeaderView.Stretch);t.setSelectionBehavior(QAbstractItemView.SelectRows);t.setEditTriggers(QAbstractItemView.NoEditTriggers);t.verticalHeader().hide()
   entries=[]
   for f in QUARANTINE.glob("*.quarantined"):
@@ -226,7 +234,7 @@ class Main(QMainWindow):
   buttons=QHBoxLayout();buttons.addStretch();cancel=QPushButton("Abbrechen");save=QPushButton("Änderungen speichern");save.setObjectName("primary");buttons.addWidget(cancel);buttons.addWidget(save);outer.addLayout(buttons);cancel.clicked.connect(d.reject)
   def save_settings():
    self.c.update({"scan_dirs":[x.strip() for x in dirs.toPlainText().splitlines() if x.strip()],"excluded_dirs":[x.strip() for x in exclude.toPlainText().splitlines() if x.strip()],"interval_minutes":interval.value(),"max_file_mb":size.value(),"ai_enabled":enabled.isChecked(),"ai_model":model.text().strip() or DEFAULT_MODEL})
-   save_cfg(self.c);self.next=time.monotonic()+self.c["interval_minutes"]*60;d.accept();self.status.setText("Einstellungen gespeichert")
+   save_cfg(self.c);logger.info("Einstellungen gespeichert");self.next=time.monotonic()+self.c["interval_minutes"]*60;d.accept();self.status.setText("Einstellungen gespeichert")
   save.clicked.connect(save_settings);d.exec()
  def pick_scan_folder(self,editor):
   folder=QFileDialog.getExistingDirectory(self,"Scanordner hinzufügen",str(Path.home()))
@@ -241,6 +249,14 @@ class Main(QMainWindow):
   if selected_line and selected_line in text:text.remove(selected_line)
   else:text.pop(-1)
   editor.setPlainText("\n".join(text))
+ def show_logs(self):
+  d=QDialog(self);d.setWindowTitle("SSS · Protokolle");d.resize(850,560);layout=QVBoxLayout(d)
+  path=QLabel("Logdatei: "+str(LOGFILE));path.setTextInteractionFlags(Qt.TextSelectableByMouse);layout.addWidget(path)
+  box=QPlainTextEdit();box.setReadOnly(True)
+  try:box.setPlainText(LOGFILE.read_text(encoding="utf-8")[-250000:])
+  except Exception as e:box.setPlainText("Log nicht verfügbar: "+str(e))
+  layout.addWidget(box);buttons=QHBoxLayout();refresh=QPushButton("Aktualisieren");open_btn=QPushButton("Logdatei öffnen");close=QPushButton("Schließen");buttons.addWidget(refresh);buttons.addWidget(open_btn);buttons.addStretch();buttons.addWidget(close);layout.addLayout(buttons)
+  refresh.clicked.connect(lambda:box.setPlainText(LOGFILE.read_text(encoding="utf-8")[-250000:] if LOGFILE.exists() else ""));open_btn.clicked.connect(lambda:QDesktopServices.openUrl(QUrl.fromLocalFile(str(LOGFILE))));close.clicked.connect(d.accept);d.exec()
 if __name__=="__main__":
  app=QApplication(sys.argv);app.setApplicationName(APP_NAME);app.setFont(QFont("Segoe UI",10))
  from sss_setup import run_first_setup, read_config
