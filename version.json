@@ -1,6 +1,6 @@
 {
   "name": "SchoolServer Security",
-  "version": "2.4.10",
+  "version": "3.0",
   "channel": "stable",
-  "notes": "Vollständige Deinstallation: entfernt Programmdateien, sämtliche SSS-Einstellungen, Logs, Cache, Quarantäne und Freigabelisten, temporäre Update-Dateien, Startmenü-/Autostart-Verknüpfungen sowie Windows-Registrierung. Keine Abschiedsdatei bleibt zurück. Separat installierte Ollama-Versionen bleiben unangetastet."
+  "notes": "SSS 3.0 bringt ein überarbeitetes Dashboard mit sanften grünen Farbverläufen, klarerer Typografie, feineren Karten, verbesserten Tabellen und dezenten Hover-Effekten. Bestehende Scan-, KI-, Quarantäne- und Update-Funktionen bleiben erhalten."
 }
