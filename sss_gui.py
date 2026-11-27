@@ -201,8 +201,9 @@ class Main(QMainWindow):
    self.ai_setup_status.setText("Ollama offline. Installiere Ollama und starte es, danach erneut prüfen.")
    self.ai_setup_status.setStyleSheet("color:#a45b18;font-weight:700");return
   models=result.get("models",[])
-  if any(DEFAULT_MODEL in name for name in models):
-   self.ai_setup_status.setText("Verbunden. Modell "+DEFAULT_MODEL+" ist installiert.")
+  model_name=self.c.get("ai_model",DEFAULT_MODEL)
+  if any(model_name in name for name in models):
+   self.ai_setup_status.setText("Verbunden. Modell "+model_name+" ist installiert.")
    self.ai_setup_status.setStyleSheet("color:#16884b;font-weight:750")
   else:
    self.ai_setup_status.setText("Ollama erreichbar, Modell fehlt noch. Klicke auf „Modell installieren / aktualisieren“.")
