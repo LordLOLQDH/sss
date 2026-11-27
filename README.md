@@ -1,40 +1,38 @@
 # SchoolServer Security (SSS)
 
-**Lokaler Sicherheitsassistent für Windows, als Python-Projekt.** Keine EXE und kein Installer.
+**SSS 2.2.0 ist eine Python-Anwendung mit einer zentralen Hauptdatei.** Keine EXE, kein Installer und keine BAT-Datei zum Starten.
 
-## Download und Start
+## Start
 
-1. Lade das [Python-Quellcode-ZIP](https://github.com/LordLOLQDH/sss/archive/refs/heads/main.zip) oder die [Downloadseite](https://lordlolqdh.github.io/sss/download.html).
-2. ZIP in einen eigenen Ordner entpacken.
-3. **Start-SSS.bat** starten. Beim ersten Start erstellt das Skript eine lokale virtuelle Umgebung und installiert die Abhängigkeiten.
-4. SSS öffnet den Einrichtungsdialog.
+1. Python 3.11 oder neuer installieren.
+2. Repository-ZIP herunterladen und entpacken.
+3. Im SSS-Ordner ein Terminal öffnen.
+4. Einmalig Abhängigkeiten installieren:
 
-Python 3.10+ muss installiert sein. Beim Windows-Python-Setup die Option "Add Python to PATH" aktivieren.
-
-## Updates
-
-SSS kann unter **Updates** die Version auf GitHub prüfen. Bei einem neuen Stand lädt der Updater das Quellcode-ZIP herunter, prüft die benötigten Dateien und legt das Update bereit. Nach dem Schließen des Programms werden die Dateien kopiert und SSS über Start-SSS.bat erneut gestartet.
-
-## Lokale KI
-
-SSS unterstützt lokale Ollama-Modelle. Installiere Ollama über https://ollama.com/download/windows, öffne es und lade das in SSS ausgewählte Modell über **KI einrichten**. KI-Analyse ist optional. Wenn Ollama oder das Modell nicht erreichbar ist, zeigt SSS einen konkreten Fehler.
-
-## Funktionen
-
-- Lokale Prüfungen und SHA-256
-- Defensive Mustererkennung für ausgewählte Scriptdateien
-- Optional ClamAV, falls lokal installiert
-- Nutzerbestätigte Quarantäne und Hash-geprüfte Wiederherstellung
-- Lokale KI-Erklärung via Ollama
-- Konfigurierbare Scanordner, Ausschlüsse und Zeitintervalle
-- Logs und kontrollierbarer Windows-Anmeldeautostart
-- Quellcode-Updater
-
-## Entwicklerstart
-
-```bat
+```powershell
 py -3 -m pip install -r requirements.txt
+```
+
+5. Hauptprogramm starten:
+
+```powershell
 py -3 sss_gui.py
 ```
 
-SSS ist ein Prototyp, kein zertifizierter Virenschutz. Es kann Dateien übersehen und Fehlalarme erzeugen. Untersuchte Dateien werden nicht ausgeführt. Quarantäneaktionen benötigen eine Bestätigung.
+**Hauptdatei: `sss_gui.py`**. Scanner, Ollama-Anbindung, Quarantäne, Logs, Einstellungen und Updater sind darin integriert. `version.json` enthält die Versionsanzeige und Updatehinweise. Die weiteren alten Moduldateien sind für den Start der neuen Hauptdatei nicht erforderlich.
+
+## Funktionen
+
+- Lokale Dateiprüfung mit SHA-256 und defensiven Musterprüfungen
+- Optionale ClamAV-Prüfung, wenn ClamAV lokal installiert ist
+- Quarantäne mit Bestätigung und Hash-geprüfter Wiederherstellung
+- Lokale KI-Erklärung über Ollama
+- GUI-Einstellungen für Scanordner, Ausschlüsse und Prüfintervall
+- Protokollfenster und Logdatei
+- Updates direkt über die GUI; vor dem Ersetzen wird eine Sicherung der Hauptdatei angelegt
+
+## Hinweise
+
+Beim ersten Start kann SSS nach Scanordnern fragen. Ollama ist optional. Installiere Ollama separat und lade das konfigurierte Modell im KI-Fenster.
+
+SSS ist ein Sicherheitsassistenz-Prototyp, kein zertifizierter Virenschutz. Es kann Dateien übersehen und Fehlalarme erzeugen. Untersuchte Dateien werden nicht ausgeführt. Quarantäneaktionen benötigen eine Bestätigung.
