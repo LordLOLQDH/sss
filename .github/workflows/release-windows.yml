@@ -26,6 +26,9 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
+      - name: Validate Python source
+        run: python -m py_compile sss_gui.py sss_core.py sss_ai.py sss_updater.py sss_setup.py
+
       - name: Build standalone desktop app
         shell: pwsh
         run: |
