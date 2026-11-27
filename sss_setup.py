@@ -179,12 +179,9 @@ class SetupWizard(QWizard):
         self.setButtonText(QWizard.NextButton, "Weiter  ›")
         self.setButtonText(QWizard.BackButton, "Zurück")
     def accept(self):
-        person = self.field("person").strip()
+        person = self.field("person").strip() or "SSS-Nutzer/in"
         school = self.field("school").strip()
-        device = self.field("device").strip()
-        if not person or not school or not device:
-            QMessageBox.warning(self, "Profil unvollständig", "Bitte Name, Schule und Gerätename ausfüllen.")
-            return
+        device = self.field("device").strip() or socket.gethostname()
         config = read_config()
         config.update({
             "profile_completed": True,
