@@ -1,6 +1,6 @@
 {
   "name": "SchoolServer Security",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "channel": "stable",
-  "notes": "Neue sss_main.py-Hauptdatei, Windows-Startmenü- und Autostart-Verknüpfungen, vollständiger SSS-Deinstaller und ZIP-basierter Updater."
+  "notes": "Wiederhergestellter SSS-Stand 2.4.0 mit direktem Python-Start, ohne den späteren Starter- und Installer-Umbau."
 }
