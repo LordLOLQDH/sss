@@ -1,43 +1,63 @@
-# SchoolServer Security (SSS) 2.0
+# SchoolServer Security (SSS)
 
-**Local-first file security assistant**  
-Developed by Adam Gabriel Kraus.
+**Lokaler Sicherheitsassistent für Windows**  
+Entwickelt von Adam Gabriel Kraus.
 
-SSS 2.0 replaces the previous Tkinter prototype with a single PySide6 desktop GUI and a separate non-executing file inspection engine.
+SSS ist eine eigenständige Desktop-App mit lokaler Datei-Prüfung, nachvollziehbaren Hinweisen und optionalen KI-Erklärungen. Es gibt derzeit **keinen Installer**.
 
-## Current 2.0 scope
-- New desktop UI (single supported GUI)
-- Scheduled recurring local scan with countdown
-- Configurable scan folders and exclusions
-- SHA-256 file hashes
-- Optional ClamAV detection if clamscan is installed
-- Basic defensive script-pattern checks
-- Explicit user-confirmed reversible quarantine move for flagged files
-- Optional local AI explanations via Ollama; no external AI calls
+## Download und Start
 
-## Local AI setup
-1. Install Ollama from its official website.
-2. Start Ollama locally.
-3. Pull the configured model, for example `ollama pull qwen2.5:3b`.
-4. Open SSS and select a scan result, then choose **KI-Erklärung**.
+1. Lade das aktuelle Paket **SSS-Windows.zip** von der [SSS-Downloadseite](https://lordlolqdh.github.io/sss/download.html) oder aus den [GitHub Releases](https://github.com/LordLOLQDH/sss/releases).
+2. Entpacke die ZIP-Datei in einen eigenen Ordner.
+3. Starte **SSS.exe**.
+4. Beim ersten Start öffnet sich automatisch der Einrichtungsassistent. Er fragt dein Profil, die KI-Verbindung und die Scanordner ab.
+5. Bei späteren Starts erkennt SSS das gespeicherte Profil und öffnet direkt die Anwendung.
 
-AI status is shown as local online/offline. AI output is advisory and cannot override the scanner findings. The scanner does not execute analyzed files.
+Profil und Einstellungen werden lokal unter **%LOCALAPPDATA%\\SchoolServer Security\\settings.json** gespeichert.
 
-## Developer run
-Python 3.10+ is recommended.
+## Erste Einrichtung
 
-```powershell
-py -3 -m pip install -r requirements.txt
-py -3 sss_gui.py
-```
+### 1. Profil
+Name, Schule/Organisation, Rolle, Gerätename und optionaler Schulserver. Diese Angaben bleiben lokal auf dem Gerät. Eine zentrale Schulserver-Anbindung ist noch nicht implementiert.
 
-## Build standalone executable
-Install PyInstaller and run:
-```powershell
-py -3 -m pip install -r requirements.txt pyinstaller
-py -3 -m PyInstaller --noconfirm --clean --windowed --onefile --name SSS sss_gui.py
-```
-The standalone EXE does not include the local AI model. Ollama and a model must be installed separately.
+### 2. Lokale KI mit Ollama
+SSS unterstützt aktuell Ollama. Andere KI-Anbieter und Cloud-APIs sind noch nicht integriert.
 
-## Safety limitations
-SSS 2.0 is a development project and is **not a certified antivirus/endpoint protection product**. It can miss malware and generate false positives. Quarantine moves are user-confirmed. Do not use it as your sole security control on school or production systems. Deployment on school computers requires approval from authorized IT staff.
+1. Öffne https://ollama.com/download/windows und installiere Ollama.
+2. Öffne PowerShell oder Windows Terminal.
+3. Führe **ollama pull qwen2.5:3b** aus.
+4. Warte, bis der Modell-Download abgeschlossen ist.
+5. Klicke im SSS-Assistenten auf **Verbindung testen**.
+
+Die KI läuft lokal. Die KI-Erklärung ist eine ergänzende Einschätzung und kann Scannerergebnisse nicht überschreiben.
+
+### 3. Scanordner
+Wähle die zu prüfenden Ordner und das Prüfintervall. Die Auswahl kann später in den Einstellungen geändert werden.
+
+## Funktionen
+
+- PySide6-Desktopoberfläche
+- Konfigurierbare Scanordner und Ausschlüsse
+- SHA-256-Dateihashes
+- Optionale ClamAV-Erkennung, sofern clamscan installiert ist
+- Defensive Musterprüfungen für ausgewählte Skriptdateien
+- Nutzerbestätigte, reversible Quarantäne
+- Hash-geprüfte Wiederherstellung aus der Quarantäne
+- Optionale lokale KI-Erklärungen via Ollama
+
+## Entwicklerstart
+
+Python 3.10+:
+
+**py -3 -m pip install -r requirements.txt**  
+**py -3 sss_gui.py**
+
+Alternativ unter Windows **Start-SSS.bat** starten. Das Skript richtet eine lokale virtuelle Python-Umgebung ein und startet SSS. Es ist kein Installationsassistent.
+
+## Windows-Build
+
+GitHub Actions baut nach Änderungen auf main eine eigenständige Windows-Anwendung und veröffentlicht **SSS-Windows.zip** als Vorab-Release. Das Paket enthält **SSS.exe**; ein Setup- oder Installationsprogramm wird nicht verwendet.
+
+## Sicherheitshinweise
+
+SSS ist ein Entwicklungsprojekt und **kein zertifizierter Virenschutz oder Endpoint-Protection-Ersatz**. Es kann Schadsoftware übersehen und Fehlalarme erzeugen. Untersuchte Dateien werden nicht ausgeführt. Quarantäneaktionen erfordern eine Bestätigung. Der Einsatz auf Schulgeräten benötigt die Freigabe der zuständigen IT.
