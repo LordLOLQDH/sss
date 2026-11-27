@@ -20,6 +20,7 @@ QUARANTINE=DATA_DIR/"Quarantine"
 VERSION="2.4.4"
 DEFAULT_MODEL="qwen2.5:3b"
 SCRIPT_EXT={".ps1",".bat",".cmd",".vbs",".js",".py",".hta",".scr",".jse",".vbe"}
+HASH_EXT=SCRIPT_EXT|{".exe",".dll",".sys",".com",".msi"}
 RULES=[(r"powershell.{0,80}-(enc|encodedcommand)","PowerShell encoded command"),(r"\b(eval|exec)\s*\(","Dynamic code execution"),(r"\b(shell=True|os\.system\s*\()","Shell execution"),(r"frombase64string.{0,100}(invoke|exec|eval)","Decode-and-execute pattern")]
 def sha256(path):
  h=hashlib.sha256()
@@ -32,7 +33,7 @@ def inspect(path,max_mb=200):
   if not p.is_file():return {"path":str(p),"risk":"Info","reasons":["Not a regular file"]}
   size=p.stat().st_size
   if size>max_mb*1024*1024:return {"path":str(p),"risk":"Info","size":size,"reasons":[f"Übersprungen: größer als {max_mb} MB"]}
-  digest=sha256(p);reasons=[];clam="Schnellmodus (kein Einzelprozess)"
+  digest=sha256(p) if p.suffix.lower() in HASH_EXT else None;reasons=[];clam="Schnellmodus (kein Einzelprozess)"
   # ClamAV wurde zuvor pro Datei als eigener Prozess gestartet. Bei vielen
   # Dateien verursachte das extreme Prozess- und Startkosten. Die schnelle
   # Prüfung nutzt lokale Heuristiken; ein separater Vollscan bleibt möglich.
@@ -42,7 +43,7 @@ def inspect(path,max_mb=200):
    for pattern,reason in RULES:
     if re.search(pattern,content,re.I|re.S):reasons.append(reason)
   risk="Critical" if "ClamAV-Erkennung" in reasons else ("Review" if reasons else "Low")
-  return {"path":str(p),"risk":risk,"reasons":reasons,"sha256":digest,"size":size,"clamav":clam,"elapsed":round(time.time()-start,2),"checked_at":datetime.now().isoformat()}
+  return {"path":str(p),"risk":risk,"reasons":reasons,"sha256":digest,"hash_status":"SHA-256 berechnet" if digest else "Für Schnellprüfung nicht erforderlich","size":size,"clamav":clam,"elapsed":round(time.time()-start,2),"checked_at":datetime.now().isoformat()}
  except PermissionError:return {"path":str(p),"risk":"Review","reasons":["Zugriff verweigert"]}
  except Exception as e:return {"path":str(p),"risk":"Review","reasons":[str(e)]}
 def iter_files(scan_dirs,excluded=()):
@@ -173,7 +174,7 @@ class ScanWorker(QObject):
      result=dict(previous["result"]);result["elapsed"]=0.0;result["cached"]=True;next_cache[key]=previous
     else:
      result=inspect(p,int(self.c["max_file_mb"]))
-     if "sha256" in result:next_cache[key]={"signature":signature,"result":result}
+     if "size" in result:next_cache[key]={"signature":signature,"result":result}
    except OSError:
     result=inspect(p,int(self.c["max_file_mb"]))
    if p.suffix.lower() in rules:
