@@ -1,6 +1,6 @@
 {
   "name": "SchoolServer Security",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "channel": "stable",
-  "notes": "Wiederhergestellter SSS-Stand 2.4.0 mit direktem Python-Start, ohne den späteren Starter- und Installer-Umbau."
+  "notes": "SSS 2.4.1: Grünes Erscheinungsbild und einheitliches Logo für Fenster, Taskleiste und Startmenü; Updates nur nach ausdrücklicher Bestätigung; rotierende Ereignisprotokolle mit Scan-, Risiko-, Quarantäne- und Update-Einträgen."
 }
