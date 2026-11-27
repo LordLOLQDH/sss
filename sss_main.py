@@ -336,7 +336,7 @@ def uninstall_sss(parent):
  script="$ErrorActionPreference='SilentlyContinue'\n$ProgressPreference='SilentlyContinue'\n$waitFor="+str(os.getpid())+"\nwhile(Get-Process -Id $waitFor -ErrorAction SilentlyContinue){Start-Sleep -Milliseconds 400}\n"
  for path in unique:
   script+="if(Test-Path -LiteralPath "+q(path)+"){Remove-Item -LiteralPath "+q(path)+" -Recurse -Force}\n"
- script+="$registryPaths=@('HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\SchoolServerSecurity','HKCU:\Software\SchoolServer Security')\nforeach($key in $registryPaths){if(Test-Path $key){Remove-Item -LiteralPath $key -Recurse -Force}}\n"
+ script+="$registryPaths=@('HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\SchoolServerSecurity','HKCU:\\Software\\SchoolServer Security')\nforeach($key in $registryPaths){if(Test-Path $key){Remove-Item -LiteralPath $key -Recurse -Force}}\n"
  script+="$tempRoot=$env:TEMP\nif($tempRoot){Get-ChildItem -LiteralPath $tempRoot -Directory -Filter 'sss_update_*' -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force}\n"
  script+="Remove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force\n"
  cleanup.write_text(script,encoding="utf-8")
