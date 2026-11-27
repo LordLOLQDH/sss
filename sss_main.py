@@ -467,6 +467,18 @@ class Main(QMainWindow):
      if not original.parent.exists():original.parent.mkdir(parents=True,exist_ok=True)
      expected=meta.get("sha256")
      restore_to=original
+     legacy_sidecar=original.with_name(original.name+".quarantene")
+     if legacy_sidecar.is_file() and expected and sha256(legacy_sidecar)==expected:
+      if not original.exists():
+       shutil.move(str(legacy_sidecar),str(original))
+       qfile.unlink()
+       qfile.with_suffix(qfile.suffix+".json").unlink(missing_ok=True)
+       restored[str(original.resolve())]=expected
+       success+=1
+       logger.info("ALTE .quarantene-DATEI ZURÜCKGEFÜHRT; DUPLIKAT ENTFERNT | %s",original)
+       continue
+      elif sha256(original)==expected:
+       legacy_sidecar.unlink()
      if original.exists():
       existing_hash=sha256(original)
       if expected and existing_hash==expected:
