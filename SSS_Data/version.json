@@ -1,6 +1,6 @@
 {
   "name": "SchoolServer Security",
-  "version": "2.4.9",
+  "version": "2.4.10",
   "channel": "stable",
-  "notes": "Wiederherstellung repariert: Bereits identische Dateien am Ursprungsort werden als schon wiederhergestellt erkannt und die redundante Quarantänekopie wird entfernt. Wenn eine andere Datei denselben Namen belegt, wird die Quarantänedatei unter einem eindeutigen Namen '(wiederhergestellt N)' abgelegt, statt sie zu blockieren oder zu überschreiben. SHA-256-Prüfung und persistente Freigabeliste bleiben aktiv."
+  "notes": "Vollständige Deinstallation: entfernt Programmdateien, sämtliche SSS-Einstellungen, Logs, Cache, Quarantäne und Freigabelisten, temporäre Update-Dateien, Startmenü-/Autostart-Verknüpfungen sowie Windows-Registrierung. Keine Abschiedsdatei bleibt zurück. Separat installierte Ollama-Versionen bleiben unangetastet."
 }
