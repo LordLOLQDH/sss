@@ -1,6 +1,6 @@
 {
   "name": "SchoolServer Security",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "channel": "stable",
-  "notes": "Taskleistenlogo, konfigurierbare automatische Dateiendungs-Quarantäne, optionale KI-Risikobewertung mit Vertrauensschwelle und erweiterte Ereignisprotokolle."
+  "notes": "SSS 2.4.1: Einheitliches SSS-Logo, grüne Oberfläche, Updateinstallation nur nach ausdrücklicher Zustimmung und rotierende, ausführlichere Ereignisprotokolle."
 }
