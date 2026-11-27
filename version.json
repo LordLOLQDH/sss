@@ -1,6 +1,6 @@
 {
   "name": "SchoolServer Security",
-  "version": "2.0.6",
+  "version": "2.1.0",
   "channel": "stable",
-  "notes": "Windows-Anmeldeautostart korrigiert (Registry-Pfad). Ollama-Verbindungsprüfung nutzt ausgewähltes Modell. Updatehinweis mit korrekt formatierten Zeilen."
+  "notes": "Wechsel auf reine Python-Distribution mit Quellcode-Updater. EXE-Build entfernt. Python-Startskript, Updater und Ollama-Modellprüfung korrigiert."
 }
