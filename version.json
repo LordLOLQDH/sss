@@ -1,6 +1,6 @@
 {
   "name": "SchoolServer Security",
-  "version": "2.4.5",
+  "version": "2.4.6",
   "channel": "stable",
-  "notes": "SSS 2.4.5: Reparatur der Quarantäne-Erstellung, stabilisierter Manager mit neuem grünem Design, Manager-Verknüpfung im Startmenü und verbesserte Reparatur-/Updateabläufe."
+  "notes": "SSS 2.4.6: Wiederhergestellte Dateien werden dauerhaft per SHA-256-Freigabeliste erkannt und bei unverändertem Inhalt nicht erneut automatisch in Quarantäne verschoben."
 }
