@@ -343,8 +343,7 @@ class Main(QMainWindow):
   if not result.get("update_available"):
    QMessageBox.information(self,"SSS Update",f"SSS ist aktuell. Installierte Version: {VERSION}");return
   latest=result.get("latest","?")
-  answer=QMessageBox.question(self,"Update verfügbar",f"SSS {latest} ist verfügbar (installiert: {VERSION}).\n\n{result.get('notes','')}\n\nQuellcode-Update herunterladen und nach dem Schließen installieren?")
-  if answer!=QMessageBox.Yes:return
+  QMessageBox.information(self,"SSS-Update",f"SSS {latest} ist verfügbar (installiert: {VERSION}).\n\n{result.get('notes','')}\n\nDas Update wird jetzt heruntergeladen und nach dem Schließen installiert.")
   download=install_update()
   if download.get("ok"):
    QMessageBox.information(self,"Updater",download.get("message","Update wird vorbereitet."));self.close()
