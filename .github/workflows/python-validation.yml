@@ -30,6 +30,20 @@ jobs:
         shell: pwsh
         run: |
           Compress-Archive -Path sss_main.py, SSS_Data, Start-SSS.bat -DestinationPath SSS-Windows.zip -Force
+          $zip = [System.IO.Compression.ZipFile]::OpenRead("SSS-Windows.zip")
+          try {
+            $entries = $zip.Entries | ForEach-Object { $_.FullName }
+            $exeEntries = $entries | Where-Object { $_ -match "[.]exe$" }
+            $allowedSamples = @("SSS_Data/demo_test_files/07_probe.exe", "SSS_Data/demo_test_files/08_probe.txt.exe")
+            $unexpected = $exeEntries | Where-Object { $_ -notin $allowedSamples }
+            if ($unexpected) { throw "Nicht erlaubte EXE-Dateien im Paket: $($unexpected -join ', ')" }
+            foreach ($sample in $allowedSamples) {
+              $entry = $zip.GetEntry($sample)
+              if ($null -eq $entry -or $entry.Length -ne 0) { throw "Exe-Testdatei fehlt oder enthält Bytes: $sample" }
+            }
+          } finally {
+            $zip.Dispose()
+          }
           Copy-Item SSS-Windows.zip SSS-Windows-Python.zip -Force
           Copy-Item SSS_Data/tools/sss_manager.py SSS-Manager.py -Force
       - name: Publish Python-only package
