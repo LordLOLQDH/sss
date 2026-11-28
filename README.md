@@ -1,52 +1,44 @@
 # SchoolServer Security (SSS)
 
-**SSS 2.3.0** ist eine Python-Desktopanwendung mit einer zentralen Hauptdatei. Es gibt keine EXE und keine BAT-Datei.
+**SSS 3.1** ist eine lokale Windows-Sicherheitsassistenz in Python. Es wird keine EXE erstellt oder benötigt.
 
 ## Projektstruktur
 
-```text
+```
 sss_main.py
+Start-SSS.bat
 SSS_Data/
 ├── assets/
 ├── modules/
+├── tools/
 ├── requirements.txt
 └── version.json
 ```
 
-Die Anwendung installiert sich beim ersten Start in das Benutzerprofil unter `%LOCALAPPDATA%\\Programs\\SchoolServer Security`. Sie erstellt eine Verknüpfung im Windows-Startmenü und einen Eintrag im Autostart-Ordner. Im Startmenü ist sie unter **SchoolServer Security** auffindbar.
+## Einfache Einrichtung ohne Administratorrechte
 
-## Erster Start
+1. Python 3.11 oder neuer für deinen Benutzer installieren. Die normale Benutzerinstallation reicht; SSS braucht keine Adminrechte.
+2. [SSS-Windows.zip herunterladen](https://github.com/LordLOLQDH/sss/releases/download/latest/SSS-Windows.zip) und entpacken.
+3. **Start-SSS.bat** doppelklicken. Das Skript richtet eine private Python-Umgebung unter `%LOCALAPPDATA%\\SchoolServer Security\\.venv` ein und installiert PySide6 ohne Administratorrechte.
+4. Beim ersten Start öffnet sich der Einrichtungsassistent. Wähle Privat oder Schule, Scanordner, Prüfintervall und ob du die lokale KI möchtest.
+5. Die Einrichtung ist fertig. Weitere Starts gehen über das Windows-Startmenü.
 
-1. Python 3.11 oder neuer installieren.
-2. [Python-App-Paket herunterladen](https://github.com/LordLOLQDH/sss/releases/download/latest/SSS-Windows-Python.zip) und entpacken.
-3. Im SSS-Ordner ein Terminal öffnen.
-4. Abhängigkeiten installieren:
+Schule und Schulserver sind optional. SSS prüft lokal ohne Netzwerk; eine Schulserver-Anbindung ist in dieser Version noch nicht enthalten. Ollama für KI-Erklärungen ist ebenfalls optional.
 
-```powershell
-py -3 -m pip install -r SSS_Data\\requirements.txt
-```
+## Installation und Wartung
 
-5. Starten:
-
-```powershell
-py -3 sss_main.py
-```
-
-Beim ersten Start wird die App in den Benutzerordner kopiert und von dort gestartet. Weitere Starts erfolgen über das Windows-Startmenü.
+SSS kopiert beim ersten Start die Programmdateien in `%LOCALAPPDATA%\\Programs\\SchoolServer Security`. Die Verknüpfungen verwenden die private Python-Umgebung. Der SSS Manager kann die Anwendung reparieren, aktualisieren oder vollständig deinstallieren. Programmupdates ersetzen den Programmordner, lassen Einstellungen, Logs und Quarantäne in deinem Benutzerprofil unangetastet.
 
 ## Funktionen
 
 - Lokale Dateiprüfung mit SHA-256 und defensiven Musterprüfungen
 - Optionale ClamAV-Prüfung, wenn ClamAV lokal installiert ist
-- Quarantäne mit Bestätigung und Hash-geprüfter Wiederherstellung
+- Quarantäne mit Bestätigung und hash-geprüfter Wiederherstellung
 - Optionale lokale KI-Erklärung über Ollama
-- GUI-Einstellungen für Scanordner, Ausschlüsse und Prüfintervall
+- Scanordner, Ausschlüsse und Prüfintervall konfigurierbar
 - Protokollfenster und lokale Logs
-- Automatische Update-Prüfung beim Programmstart
-- ZIP-Updater für die Hauptdatei und den gesamten Ordner `SSS_Data`
-- Vollständige Deinstallation mit Entfernung der SSS-Dateien, Einstellungen, Quarantäne, Startmenü- und Autostart-Verknüpfungen
-
-Bei der Deinstallation bleibt auf dem Desktop eine einzelne Abschiedsdatei zurück. Eine separat installierte Ollama-Anwendung wird nicht entfernt.
+- Update-Prüfung beim Programmstart und bestätigte Installation
+- Python-only ZIP-Paket und separater Manager
 
 ## Sicherheitshinweis
 
