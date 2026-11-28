@@ -47,7 +47,6 @@ jobs:
               if ($null -eq $entry -or $entry.Length -ne 0) { throw "Exe-Testdatei fehlt oder enthält Bytes: $sample" }
             }
             Write-Host "SSS-Windows.zip package content verified (only empty EXE test samples)."
-            Write-Host "SSS-Windows.zip package content verified."
           } finally {
             $zip.Dispose()
           }
