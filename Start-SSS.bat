@@ -9,7 +9,7 @@ where py >nul 2>nul
 if errorlevel 1 set "PY_CMD=python"
 %PY_CMD% -c "import sys;sys.exit(0 if sys.version_info >= (3,11) else 1)" >nul 2>nul
 if errorlevel 1 goto python_missing
-if not exist "%APP_INSTALL%" mkdir "%APP_INSTALL%"
+if not exist "%DATA_HOME%" mkdir "%DATA_HOME%"
 if not exist "%VENV%\Scripts\python.exe" (
   echo [SSS] Erstelle private Python-Umgebung ...
   %PY_CMD% -m venv "%VENV%"
