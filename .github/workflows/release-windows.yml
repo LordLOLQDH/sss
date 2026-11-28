@@ -35,7 +35,15 @@ jobs:
             foreach ($item in $required) {
               if ($entries -notcontains $item) { throw "Paketdatei fehlt: $item" }
             }
-            if ($entries | Where-Object { $_ -match "\.exe$" }) { throw "EXE-Datei im Python-Paket gefunden" }
+            $exeEntries = $entries | Where-Object { $_ -match "\\.exe$" }
+            $allowedSamples = @("SSS_Data/demo_test_files/07_probe.exe", "SSS_Data/demo_test_files/08_probe.txt.exe")
+            $unexpected = $exeEntries | Where-Object { $_ -notin $allowedSamples }
+            if ($unexpected) { throw "Nicht erlaubte EXE-Dateien im Paket: $($unexpected -join ', ')" }
+            foreach ($sample in $allowedSamples) {
+              $entry = $zip.GetEntry($sample)
+              if ($null -eq $entry -or $entry.Length -ne 0) { throw "Exe-Testdatei fehlt oder enthält Bytes: $sample" }
+            }
+            Write-Host "SSS-Windows.zip package content verified (only empty EXE test samples)."
             Write-Host "SSS-Windows.zip package content verified."
           } finally {
             $zip.Dispose()
