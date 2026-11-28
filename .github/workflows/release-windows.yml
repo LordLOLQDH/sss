@@ -35,7 +35,7 @@ jobs:
             foreach ($item in $required) {
               if ($entries -notcontains $item) { throw "Paketdatei fehlt: $item" }
             }
-            $exeEntries = $entries | Where-Object { $_ -match "\\.exe$" }
+            $exeEntries = $entries | Where-Object { $_ -match "[.]exe$" }
             $allowedSamples = @("SSS_Data/demo_test_files/07_probe.exe", "SSS_Data/demo_test_files/08_probe.txt.exe")
             $unexpected = $exeEntries | Where-Object { $_ -notin $allowedSamples }
             if ($unexpected) { throw "Nicht erlaubte EXE-Dateien im Paket: $($unexpected -join ', ')" }
