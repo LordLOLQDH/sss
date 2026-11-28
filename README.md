@@ -1,6 +1,6 @@
 # SchoolServer Security (SSS)
 
-**SSS 3.1** ist eine lokale Windows-Sicherheitsassistenz in Python. Es wird keine EXE erstellt oder benötigt.
+**SSS 3.2** ist eine lokale Windows-Sicherheitsassistenz in Python. Es wird keine EXE erstellt oder benötigt.
 
 ## Projektstruktur
 
