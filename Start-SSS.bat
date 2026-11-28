@@ -7,7 +7,7 @@ set "VENV=%APP_INSTALL%\.venv"
 set "PY_CMD=py -3"
 where py >nul 2>nul
 if errorlevel 1 set "PY_CMD=python"
-%PY_CMD% -c "import sys;sys.exit(0 if sys.version_info >= (3,11) else 1" >nul 2>nul
+%PY_CMD% -c "import sys;sys.exit(0 if sys.version_info >= (3,11) else 1)" >nul 2>nul
 if errorlevel 1 goto python_missing
 if not exist "%APP_INSTALL%" mkdir "%APP_INSTALL%"
 if not exist "%VENV%\Scripts\python.exe" (
