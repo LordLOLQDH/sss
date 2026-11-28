@@ -1,6 +1,6 @@
 {
   "name": "SchoolServer Security",
-  "version": "3.1",
+  "version": "3.2",
   "channel": "stable",
-  "notes": "SSS 3.1 verfeinert die kritische-Dateien-Ansicht: ausschließlich Critical-Dateien werden angezeigt; bei leerem Ergebnis bleiben Verlauf und Tabelle leer und das transparente SSS-Wasserzeichen liegt über dem grünen Verlauf. Benachrichtigungsdialoge wurden optisch an das helle Design angepasst. Keine Funktionsänderungen am Scan, an der KI, Quarantäne oder am Updateprozess."
+  "notes": "SSS 3.2 ergänzt einen Einrichtungsassistenten für Privatpersonen und Schulen: Scanordner und Prüfintervall wählen, lokale KI optional aktivieren, Autostart optional. Ein Startskript richtet eine private Python-Umgebung ohne Administratorrechte ein. Schulserver ist nicht erforderlich; eine Serveranbindung ist noch nicht enthalten."
 }
