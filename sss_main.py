@@ -393,7 +393,7 @@ class FirstRunWizard(QDialog):
   if not dirs:
    QMessageBox.information(self,"Ordnerauswahl","Bitte wähle mindestens einen Ordner aus. Downloads wird als Standard verwendet.")
    dirs=[str(Path.home()/"Downloads")]
-  self.settings={"setup_completed":True,"profile":"school" if self.school_radio.isChecked() else "private","scan_dirs":dirs,"interval_minutes":self.interval.value(),"ai_enabled":self.ai_check.isChecked(),"autostart":self.autostart_check.isChecked()}
+  self.settings={"setup_completed":True,"seen_version":VERSION,"profile":"school" if self.school_radio.isChecked() else "private","scan_dirs":dirs,"interval_minutes":self.interval.value(),"ai_enabled":self.ai_check.isChecked(),"autostart":self.autostart_check.isChecked()}
   self.accept()
 
 class Main(QMainWindow):
