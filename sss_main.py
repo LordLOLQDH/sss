@@ -112,7 +112,7 @@ if not logger.handlers:
  handler=RotatingFileHandler(LOGFILE,maxBytes=2*1024*1024,backupCount=5,encoding="utf-8")
  handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(message)s"))
  logger.addHandler(handler)
-DEFAULT={"scan_dirs":[str(Path.home()/"Downloads"),str(Path.home()/"Desktop")],"excluded_dirs":[],"interval_minutes":10,"max_file_mb":200,"ai_enabled":True,"ai_model":DEFAULT_MODEL,"quarantine_extensions":[],"ai_auto_quarantine":False,"ai_quarantine_threshold":95}
+DEFAULT={"scan_dirs":[str(Path.home()/"Downloads"),str(Path.home()/"Desktop")],"excluded_dirs":[],"interval_minutes":10,"max_file_mb":200,"ai_enabled":False,"ai_model":DEFAULT_MODEL,"quarantine_extensions":[],"ai_auto_quarantine":False,"ai_quarantine_threshold":95,"setup_completed":False,"profile":"private","autostart":False}
 STYLE="""QMainWindow{background:#edf4ef} QWidget{background:transparent;color:#163126;font-family:'Segoe UI';font-size:13px} QMainWindow QWidget#centralGradient{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #f4faf6,stop:0.52 #e9f4ed,stop:1 #e7eef4)} QFrame#card{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #ffffff,stop:1 #f4faf6);border:1px solid #d5e5da;border-radius:16px} QFrame#card:hover{border:1px solid #b7d7c3} QPushButton{background:qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #ffffff,stop:1 #f4f8f5);border:1px solid #d6e4da;border-radius:10px;padding:9px 14px;font-weight:650} QPushButton:hover{background:#e8f4ec;border-color:#a9d1b6} QPushButton:pressed{background:#dceee3} QPushButton#primary{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #168b50,stop:1 #21a86a);color:white;border-color:#168b50} QPushButton#primary:hover{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #117845,stop:1 #18945a)} QTableWidget{background:#ffffff;border:1px solid #d9e7de;border-radius:13px;selection-background-color:#dcefe4;alternate-background-color:#f8fbf9;gridline-color:#eef3f0} QHeaderView::section{background:#f3f8f5;border:0;border-bottom:1px solid #dfeae3;padding:11px;color:#62776b;font-weight:750} QProgressBar{background:#dfece4;border:0;border-radius:3px} QProgressBar::chunk{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #168b50,stop:1 #4ac889);border-radius:3px} QTabWidget::pane{background:#fff;border:1px solid #dfe8e2;border-radius:12px} QLineEdit,QPlainTextEdit,QTextEdit,QSpinBox{background:white;border:1px solid #dce8df;border-radius:9px;padding:8px} QCheckBox{spacing:8px} QToolTip{background:#173629;color:white;border:1px solid #2a6848;padding:5px} QMessageBox{background:#f0f7f2;color:#183a29} QMessageBox QLabel{background:transparent;color:#183a29} QMessageBox QPushButton{background:#ffffff;color:#183a29;border:1px solid #cfe0d5;border-radius:8px;padding:7px 14px} QMessageBox QPushButton:hover{background:#e5f2e9}"""
 def load_restored_files():
  try:
@@ -347,6 +347,54 @@ def uninstall_sss(parent):
  cleanup.write_text(script,encoding="utf-8")
  subprocess.Popen(["powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File",str(cleanup)],creationflags=getattr(subprocess,"CREATE_NEW_PROCESS_GROUP",0x200),close_fds=True)
  QApplication.quit()
+
+class FirstRunWizard(QDialog):
+ def __init__(self,cfg=None):
+  super().__init__();self.cfg={**DEFAULT,**(cfg or {})};self.settings={}
+  self.setWindowTitle("SchoolServer Security · Einrichtung");self.resize(660,600)
+  layout=QVBoxLayout(self);layout.setSpacing(12)
+  title=QLabel("SSS einrichten");title.setStyleSheet("font-size:25px;font-weight:850;color:#183a29");layout.addWidget(title)
+  intro=QLabel("Die Einrichtung ist einfach und braucht keine Administratorrechte. SSS prüft Dateien lokal. Schule, Schulnetzwerk und Schulserver sind nicht erforderlich.");intro.setWordWrap(True);intro.setStyleSheet("color:#64766b");layout.addWidget(intro)
+  profile=QGroupBox("Wie möchtest du SSS nutzen?");profile_layout=QVBoxLayout(profile)
+  self.private_radio=QRadioButton("Privat / eigene Geräte");self.school_radio=QRadioButton("Schule / Unterricht")
+  self.private_radio.setChecked(self.cfg.get("profile","private")!="school");self.school_radio.setChecked(self.cfg.get("profile","private")=="school")
+  profile_layout.addWidget(self.private_radio);profile_layout.addWidget(self.school_radio);layout.addWidget(profile)
+  scans=QGroupBox("Welche Ordner sollen geprüft werden?");scan_layout=QVBoxLayout(scans)
+  home=Path.home();downloads=str(home/"Downloads");desktop=str(home/"Desktop")
+  configured=[str(Path(x).expanduser()) for x in self.cfg.get("scan_dirs",[])]
+  self.downloads_check=QCheckBox("Downloads");self.downloads_check.setChecked(downloads in configured)
+  self.desktop_check=QCheckBox("Desktop");self.desktop_check.setChecked(desktop in configured)
+  scan_layout.addWidget(self.downloads_check);scan_layout.addWidget(self.desktop_check)
+  self.custom_dirs=QListWidget()
+  for folder in configured:
+   if folder not in (downloads,desktop):self.custom_dirs.addItem(folder)
+  self.custom_dirs.setMaximumHeight(100);scan_layout.addWidget(self.custom_dirs)
+  folder_buttons=QHBoxLayout();add=QPushButton("Eigenen Ordner hinzufügen …");remove=QPushButton("Ausgewählten entfernen");folder_buttons.addWidget(add);folder_buttons.addWidget(remove);scan_layout.addLayout(folder_buttons)
+  add.clicked.connect(self.add_folder);remove.clicked.connect(self.remove_folder);layout.addWidget(scans)
+  self.interval=QSpinBox();self.interval.setRange(1,360);self.interval.setSuffix(" Minuten");self.interval.setValue(int(self.cfg.get("interval_minutes",10)))
+  interval_row=QHBoxLayout();interval_row.addWidget(QLabel("Automatisches Prüfintervall"));interval_row.addWidget(self.interval);interval_row.addStretch();layout.addLayout(interval_row)
+  self.ai_check=QCheckBox("Lokale KI-Erklärungen optional nutzen (Ollama)");self.ai_check.setChecked(bool(self.cfg.get("ai_enabled",False)));layout.addWidget(self.ai_check)
+  self.autostart_check=QCheckBox("SSS beim Anmelden automatisch starten");self.autostart_check.setChecked(bool(self.cfg.get("autostart",False)));layout.addWidget(self.autostart_check)
+  self.server_note=QLabel("Schulserver: optional. SSS funktioniert ohne Schulserver und ohne Netzwerk. Eine Schulserver-Anbindung ist in dieser Version noch nicht enthalten.");self.server_note.setWordWrap(True);self.server_note.setStyleSheet("background:#f3f8f5;border:1px solid #dfe8e2;border-radius:10px;padding:12px;color:#607166");layout.addWidget(self.server_note)
+  buttons=QHBoxLayout();later=QPushButton("Später");finish=QPushButton("Einrichtung abschließen");finish.setObjectName("primary");buttons.addStretch();buttons.addWidget(later);buttons.addWidget(finish);layout.addLayout(buttons)
+  later.clicked.connect(self.reject);finish.clicked.connect(self.finish_setup)
+ def add_folder(self):
+  folder=QFileDialog.getExistingDirectory(self,"Zusätzlichen Prüfordner auswählen",str(Path.home()))
+  if folder and not [self.custom_dirs.item(i).text().casefold() for i in range(self.custom_dirs.count())].__contains__(folder.casefold()):
+   self.custom_dirs.addItem(folder)
+ def remove_folder(self):
+  item=self.custom_dirs.currentItem()
+  if item:self.custom_dirs.takeItem(self.custom_dirs.row(item))
+ def finish_setup(self):
+  dirs=[]
+  if self.downloads_check.isChecked():dirs.append(str(Path.home()/"Downloads"))
+  if self.desktop_check.isChecked():dirs.append(str(Path.home()/"Desktop"))
+  dirs.extend(self.custom_dirs.item(i).text() for i in range(self.custom_dirs.count()))
+  if not dirs:
+   QMessageBox.information(self,"Ordnerauswahl","Bitte wähle mindestens einen Ordner aus. Downloads wird als Standard verwendet.")
+   dirs=[str(Path.home()/"Downloads")]
+  self.settings={"setup_completed":True,"profile":"school" if self.school_radio.isChecked() else "private","scan_dirs":dirs,"interval_minutes":self.interval.value(),"ai_enabled":self.ai_check.isChecked(),"autostart":self.autostart_check.isChecked()}
+  self.accept()
 
 class Main(QMainWindow):
  def __init__(self):
@@ -686,7 +734,15 @@ if __name__=="__main__":
  if APP_ICON.is_file():app.setWindowIcon(QIcon(str(APP_ICON)))
  w=Main();w.show()
  cfg=load_cfg()
- if cfg.get("autostart",True) and not autostart_enabled():set_autostart(True)
+ if not cfg.get("setup_completed",False):
+  wizard=FirstRunWizard(cfg)
+  if wizard.exec()==QDialog.Accepted:
+   cfg.update(wizard.settings);save_cfg(cfg)
+   if os.name=="nt":
+    ok,msg=set_autostart(cfg.get("autostart",False))
+    if not ok:QMessageBox.warning(None,"SSS Einrichtung","Autostart konnte nicht gesetzt werden: "+msg)
+ if cfg.get("autostart",False) and not autostart_enabled():set_autostart(True)
+ elif autostart_enabled():set_autostart(False)
  if cfg.get("seen_version")!=VERSION:
   try:
    meta=json.loads((Path(__file__).resolve().parent/"SSS_Data"/"version.json").read_text(encoding="utf-8"))
