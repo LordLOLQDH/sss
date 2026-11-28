@@ -32,6 +32,8 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: |
+          $cacheDirs = Get-ChildItem -Path . -Directory -Filter "__pycache__" -Recurse -ErrorAction SilentlyContinue
+          foreach ($dir in $cacheDirs) { Remove-Item $dir.FullName -Recurse -Force }
           Compress-Archive -Path sss_main.py, SSS_Data, Start-SSS.bat -DestinationPath SSS-Windows.zip -Force
           $zip = [System.IO.Compression.ZipFile]::OpenRead("SSS-Windows.zip")
           try {
@@ -44,6 +46,7 @@ jobs:
               $entry = $zip.GetEntry($sample)
               if ($null -eq $entry -or $entry.Length -ne 0) { throw "Exe-Testdatei fehlt oder enthält Bytes: $sample" }
             }
+            if ($entries | Where-Object { $_ -match "__pycache__|[.]pyc$" }) { throw "Python-Cache-Dateien im Release-ZIP" }
           } finally {
             $zip.Dispose()
           }
@@ -92,6 +95,7 @@ jobs:
               $entry = $zip.GetEntry($sample)
               if ($null -eq $entry -or $entry.Length -ne 0) { throw "Exe-Testdatei fehlt oder enthält Bytes: $sample" }
             }
+            if ($entries | Where-Object { $_ -match "__pycache__|[.]pyc$" }) { throw "Python-Cache-Dateien im Download-ZIP" }
           } finally {
             $zip.Dispose()
             Remove-Item $target -Force -ErrorAction SilentlyContinue
