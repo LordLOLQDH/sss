@@ -354,7 +354,7 @@ class FirstRunWizard(QDialog):
   self.setWindowTitle("SchoolServer Security · Einrichtung");self.resize(660,600)
   layout=QVBoxLayout(self);layout.setSpacing(12)
   title=QLabel("SSS einrichten");title.setStyleSheet("font-size:25px;font-weight:850;color:#183a29");layout.addWidget(title)
-  intro=QLabel("Die Einrichtung ist einfach und braucht keine Administratorrechte. SSS prüft Dateien lokal. Schule, Schulnetzwerk und Schulserver sind nicht erforderlich.");intro.setWordWrap(True);intro.setStyleSheet("color:#64766b");layout.addWidget(intro)
+  self.intro=QLabel("Die Einrichtung ist einfach und braucht keine Administratorrechte. SSS prüft Dateien lokal. Schule, Schulnetzwerk und Schulserver sind nicht erforderlich.");self.intro.setWordWrap(True);self.intro.setStyleSheet("color:#64766b");layout.addWidget(self.intro)
   profile=QGroupBox("Wie möchtest du SSS nutzen?");profile_layout=QVBoxLayout(profile)
   self.private_radio=QRadioButton("Privat / eigene Geräte");self.school_radio=QRadioButton("Schule / Unterricht")
   self.private_radio.setChecked(self.cfg.get("profile","private")!="school");self.school_radio.setChecked(self.cfg.get("profile","private")=="school")
@@ -380,7 +380,7 @@ class FirstRunWizard(QDialog):
   later.clicked.connect(self.reject);finish.clicked.connect(self.finish_setup)
  def add_folder(self):
   folder=QFileDialog.getExistingDirectory(self,"Zusätzlichen Prüfordner auswählen",str(Path.home()))
-  if folder and not [self.custom_dirs.item(i).text().casefold() for i in range(self.custom_dirs.count())].__contains__(folder.casefold()):
+  if folder and folder.casefold() not in [self.custom_dirs.item(i).text().casefold() for i in range(self.custom_dirs.count())]:
    self.custom_dirs.addItem(folder)
  def remove_folder(self):
   item=self.custom_dirs.currentItem()
