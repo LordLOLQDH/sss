@@ -27,6 +27,8 @@ jobs:
       - name: Build source-only Windows ZIP
         shell: pwsh
         run: |
+          $cacheDirs = Get-ChildItem -Path . -Directory -Filter "__pycache__" -Recurse -ErrorAction SilentlyContinue
+          foreach ($dir in $cacheDirs) { Remove-Item $dir.FullName -Recurse -Force }
           Compress-Archive -Path sss_main.py, SSS_Data, Start-SSS.bat -DestinationPath SSS-Windows.zip -Force
           $zip = [System.IO.Compression.ZipFile]::OpenRead("SSS-Windows.zip")
           try {
@@ -36,6 +38,7 @@ jobs:
               if ($entries -notcontains $item) { throw "Paketdatei fehlt: $item" }
             }
             $exeEntries = $entries | Where-Object { $_ -match "[.]exe$" }
+            if ($entries | Where-Object { $_ -match "__pycache__|[.]pyc$" }) { throw "Python-Cache-Dateien im Paket gefunden" }
             $allowedSamples = @("SSS_Data/demo_test_files/07_probe.exe", "SSS_Data/demo_test_files/08_probe.txt.exe")
             $unexpected = $exeEntries | Where-Object { $_ -notin $allowedSamples }
             if ($unexpected) { throw "Nicht erlaubte EXE-Dateien im Paket: $($unexpected -join ', ')" }
